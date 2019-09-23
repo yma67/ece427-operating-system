@@ -92,12 +92,12 @@
         struct rlimit old_lim, new_lim;                                        \
         memset(&old_lim, 0, sizeof(struct rlimit));                            \
         getrlimit(RLIMIT_AS, &old_lim);                                        \
-        fprintf(stdout, "old mem limit %ju bytes\n", old_lim.rlim_cur);        \
+        fprintf(stdout, "old mem limit %llu bytes\n", old_lim.rlim_cur);       \
         memcpy(&new_lim, &old_lim, sizeof(struct rlimit));                     \
         new_lim.rlim_cur = atoi(_argv[1]);                                     \
         if (setrlimit(RLIMIT_AS, &new_lim) != -1) {                            \
             getrlimit(RLIMIT_AS, &new_lim);                                    \
-            fprintf(stdout, "new mem limit %ju bytes\n", new_lim.rlim_cur);    \
+            fprintf(stdout, "new mem limit %llu bytes\n", new_lim.rlim_cur);   \
         } else {                                                               \
             fprintf(stdout, "set limit failed\n");                             \
             _rc = -1;                                                          \
@@ -130,59 +130,83 @@
     _rc;                                                                       \
 })
 
+#define ARGPARSE(_unparsed, _argc, _args) {                                    \
+    int _i = 0;                                                                \
+    char *_carg = strtok(_unparsed, CMD_DELIM);                                \
+    while (_carg != NULL) {                                                    \
+        _args[_i] = _carg;                                                     \
+        _i = _i + 1;                                                           \
+        _carg = strtok(NULL, CMD_DELIM);                                       \
+        if (_carg != NULL)                                                     \
+            *(_carg - 1) = '\0';                                               \
+    }                                                                          \
+    _argc = _i;                                                                \
+}
+
+#define SYSTEM(_argc, _argv, _sys_argc, _sys_argv,                             \
+               _pipe_ptr, _pipe_argc, _pipe_argv,                              \
+               _curr_history, _num_history) {                                  \
+    int _rc;                                                                   \
+    if (_pipe_ptr != NULL) {                                                   \
+        int _pipe_left, _pipel_stat, _fdp[2];                                  \
+        pipe(_fdp);                                                            \
+        _pipe_left = fork();                                                   \
+        if (_pipe_left < 0) {                                                  \
+            _rc = -1;                                                          \
+        } else if (_pipe_left == 0) {                                          \
+            int _pipe_right, _pipe_stat, _fd;                                  \
+            _pipe_right = fork();                                              \
+            if (_pipe_right < 0) {                                             \
+                _rc = -1;                                                      \
+            } else if (_pipe_right == 0) {                                     \
+                _fd = open(_sys_argv[1], O_RDONLY);                            \
+                dup2(_fd, fileno(stdin));                                      \
+                _rc = EXEC(_pipe_argc, _pipe_argv,                             \
+                           _curr_history, _num_history);                       \
+            } else {                                                           \
+                close(_fdp[0]);                                                \
+                FILE *_fdpp = fdopen(_fdp[1], "w");                            \
+                fprintf(_fdpp, "%d", _pipe_right);                             \
+                fflush(_fdpp);                                                 \
+                _fd = open(_sys_argv[1], O_WRONLY);                            \
+                dup2(_fd, fileno(stdout));                                     \
+                _rc = EXEC(_argc, _argv, _curr_history, _num_history);         \
+            }                                                                  \
+        } else {                                                               \
+            int _gcpid, _gcstat;                                               \
+            close(_fdp[1]);                                                    \
+            FILE *_fdpp = fdopen(_fdp[0], "r");                                \
+            fscanf(_fdpp, "%d", &_gcpid);                                      \
+            waitpid(_gcpid, &_gcstat, WUNTRACED);                              \
+            waitpid(_pipe_left, &_pipel_stat, WUNTRACED);                      \
+        }                                                                      \
+    } else {                                                                   \
+        int _child_pid, _child_status;                                         \
+        _child_pid = fork();                                                   \
+        if (_child_pid < 0) {                                                  \
+            _rc = -1;                                                          \
+        } else if (_child_pid == 0) {                                          \
+            _rc = EXEC(_argc, _argv, _curr_history, _num_history);             \
+        } else {                                                               \
+            _rc = waitpid(_child_pid, &_child_status, WUNTRACED);              \
+        }                                                                      \
+    }                                                                          \
+    if (_rc < 0)                                                               \
+        exit(EXIT_FAILURE);                                                    \
+}
+
 sigjmp_buf keep_running;
 int curr_history = 0;
 int num_history = 0;
-int my_argc = 0;
+int ts_argc = 0;
 int pipe_argc = 0;
 char pwd[PWD_LEN];
 char history[HISTORY_LIMIT][INPUT_LEN];
 char line[INPUT_LEN];
 char prompt[PROMPT_LEN];
 char *pipe_ptr = NULL;
-char *my_argv[ARGS_LEN];
+char *ts_argv[ARGS_LEN];
 char *pipe_argv[ARGS_LEN];
-
-void sigint_handler(int sig);
-void sigtstp_handler(int sig);
-void argparse(char unparsed[], int *argv, char *args[]); 
-void my_system(char *my_argv[], int sys_argc, char *sys_argv[], 
-               char *pipe_ptr, int pipe_argc, char *pipe_argv[]);
-
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Please specify location of FIFO pipe.\n");
-        exit(EXIT_FAILURE);
-    }
-    POSIX_SIGNAL;
-    while (TRUE) {
-        FRESH_CMD(my_argv, my_argc, line, history, curr_history, prompt, 
-                  pwd, pipe_ptr, pipe_argv, pipe_argc);
-        fgets(line, INPUT_LEN, stdin);
-        if (sigsetjmp(keep_running, 1)) 
-            continue;
-        if (strlen(line) <= 1)
-            break;
-        INSERT_HISTORY(history, curr_history, num_history, line);
-        DETECT_PIPE(line, pipe_ptr);
-        if (pipe_ptr != NULL)
-            argparse(pipe_ptr, &pipe_argc, pipe_argv);
-        argparse(line, &my_argc, my_argv);
-        if (CATCH_COMMAND(my_argv[0], "chdir")) {
-            CHDIR(my_argc, my_argv);
-        } else if (pipe_ptr != NULL && CATCH_COMMAND(pipe_argv[0], "chdir")) {
-            CHDIR(pipe_argc, pipe_argv);
-        } else if (CATCH_COMMAND(my_argv[0], "limit")) {
-            LIMIT(my_argc, my_argv);
-        } else if (pipe_ptr != NULL && CATCH_COMMAND(pipe_argv[0], "limit")) {
-            LIMIT(pipe_argc, pipe_argv);
-        } else {
-            my_system(my_argv, argc, argv, pipe_ptr, pipe_argc, pipe_argv);
-        }
-    }
-    printf("\n");
-    return EXIT_SUCCESS;
-}
 
 void sigint_handler(int sig) {
     POSIX_SIGNAL;
@@ -200,69 +224,44 @@ void sigtstp_handler(int sig) {
     siglongjmp(keep_running, 1);
 }
 
-void argparse(char unparsed[], int *argv, char *args[]) {
-    int i = 0;
-    char *carg = strtok(unparsed, CMD_DELIM);
-    while (carg != NULL) {
-        args[i] = carg;
-        i = i + 1;
-        carg = strtok(NULL, CMD_DELIM);
-        if (carg != NULL)
-            *(carg - 1) = '\0';
-    }
-    *argv = i;
-}
-
-void my_system(char *my_argv[], int sys_argc, char *sys_argv[], 
-               char *pipe_ptr, int pipe_argc, char *pipe_argv[]) {
-    int rc;
-    if (pipe_ptr != NULL) {
-        int pipe_left, pipel_stat, fdp[2];
-        char buff[200];
-        memset(buff, 0, sizeof(char) * 200);
-        pipe(fdp);
-        pipe_left = fork();
-        if (pipe_left < 0) {
-            rc = -1;
-        } else if (pipe_left == 0) {
-            int pipe_right, pipe_stat, fd;
-            pipe_right = fork();
-            if (pipe_right < 0) {
-                rc = -1;
-            } else if (pipe_right == 0) {
-                fd = open(sys_argv[1], O_RDONLY);
-                dup2(fd, fileno(stdin));
-                rc = EXEC(pipe_argc, pipe_argv, curr_history, num_history);
-            } else {
-                close(fdp[0]);
-                FILE *fdpp = fdopen(fdp[1], "w");
-                fprintf(fdpp, "%d", pipe_right);
-                fflush(fdpp);
-                fd = open(sys_argv[1], O_WRONLY);
-                dup2(fd, fileno(stdout));
-                rc = EXEC(my_argc, my_argv, curr_history, num_history);
-            }
-        } else {
-            int gcpid, gcstat;
-            close(fdp[1]);
-            FILE *fdpp = fdopen(fdp[0], "r");
-            fscanf(fdpp, "%d", &gcpid);
-            waitpid(gcpid, &gcstat, WUNTRACED);
-            waitpid(pipe_left, &pipel_stat, WUNTRACED);
-        }
-    } else {
-        int child_pid, child_status;
-        child_pid = fork();
-        if (child_pid < 0) {
-            rc = -1;
-        } else if (child_pid == 0) {
-            rc = EXEC(my_argc, my_argv, curr_history, num_history);
-        } else {
-            rc = waitpid(child_pid, &child_status, WUNTRACED);
-        }
-    }
-    if (rc < 0) 
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Please specify location of FIFO pipe.\n");
         exit(EXIT_FAILURE);
+    }
+    POSIX_SIGNAL;
+    while (TRUE) {
+        // Get a line
+        FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
+                  prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
+        fgets(line, INPUT_LEN, stdin);
+        if (sigsetjmp(keep_running, 1)) 
+            continue;
+        // if len > 1 then
+        if (strlen(line) <= 1)
+            break;
+        INSERT_HISTORY(history, curr_history, num_history, line);
+        DETECT_PIPE(line, pipe_ptr);
+        if (pipe_ptr != NULL)
+            ARGPARSE(pipe_ptr, pipe_argc, pipe_argv);
+        ARGPARSE(line, ts_argc, ts_argv);
+        // exec
+        if (CATCH_COMMAND(ts_argv[0], "chdir")) {
+            CHDIR(ts_argc, ts_argv);
+        } else if (pipe_ptr != NULL && 
+                   CATCH_COMMAND(pipe_argv[0], "chdir")) {
+            CHDIR(pipe_argc, pipe_argv);
+        } else if (CATCH_COMMAND(ts_argv[0], "limit")) {
+            LIMIT(ts_argc, ts_argv);
+        } else if (pipe_ptr != NULL && 
+                   CATCH_COMMAND(pipe_argv[0], "limit")) {
+            LIMIT(pipe_argc, pipe_argv);
+        } else {
+            SYSTEM(ts_argc, ts_argv, argc, argv, 
+                   pipe_ptr, pipe_argc, pipe_argv, 
+                   curr_history, num_history);
+        }
+    }
+    printf("\n");
+    return EXIT_SUCCESS;
 }
-
-
