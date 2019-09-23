@@ -10,18 +10,29 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 
-#define TRUE          1
-#define FALSE         0
-#define INPUT_LEN     201
-#define HISTORY_LIMIT 4
-#define ARGS_LEN      30
-#define PWD_LEN       80
-#define PROMPT_LEN    500
-#define PROMPT        "ott-ads-148:"
-#define PROMPT_SUF    " > "
-#define CMD_DELIM     " \n"
+#define TRUE            1
+#define FALSE           0
+#define INPUT_LEN       201
+#define HISTORY_LIMIT   4
+#define ARGS_LEN        30
+#define PWD_LEN         80
+#define PROMPT_LEN      500
+#define PROMPT          "\033[1;32mott-ads-148\033[0m:\033[1;34m"
+#define PROMPT_SUF      "\033[0m > "
+#define PIPE_WARN       "\033[0;33m[Warning]:To enable pipe, a FIFO should be "\
+                        "passed as the second argument. Only the first command"\
+                        " will be executed.\033[0m\n"
+#define CHDIR_ERR       "\033[1;31mPlease specify directory to change\033[0m\n"
+#define SETLIM_ERR      "\033[1;31mset limit failed\033[0m\n"
+#define SETLIM_NAN      "\033[1;31mInput a number, svp!\033[0m\n"
+#define PIPEL_ERR       "\033[1;31mleft child exited with = %d\033[0m\n"
+#define PIPER_ERR       "\033[1;31mright child exited with = %d\033[0m\n"
+#define CHILD_ERR       "\033[1;31mchild exited with = %d\033[0m\n"
+#define EXEC_FAIL       "\033[1;31mExecution Failed\033[0m\n"
+#define QUIT_PROMPT     "\n\033[1;31mWould you like to quit [y/N]:\033[0m "
 
 #define GET_IPAST(_i, _chist) (_chist - _i + HISTORY_LIMIT) % HISTORY_LIMIT
+
 #define CATCH_COMMAND(_line, _cmd) !strncmp(_line, _cmd, strlen(_cmd))
 
 #define FRESH_CMD(_argv, _argc, _line, _history, _history_count, _prompt,      \
@@ -43,12 +54,12 @@
     fflush(stdout);                                                            \
 }
 
-#define POSIX_SIGNAL {                                                         \
+#define POSIX_SIGNAL(_sigint_handler, _sigtstp_handler) {                      \
     struct sigaction sgint, sgtstp;                                            \
     sgint.sa_flags = 1;                                                        \
-    sgint.sa_handler = sigint_handler;                                         \
+    sgint.sa_handler = _sigint_handler;                                        \
     sgtstp.sa_flags = 1;                                                       \
-    sgtstp.sa_handler = sigtstp_handler;                                       \
+    sgtstp.sa_handler = _sigtstp_handler;                                      \
     sigaction(SIGINT, &sgint, NULL);                                           \
     sigaction(SIGTSTP, &sgtstp, NULL);                                         \
 }
@@ -82,7 +93,7 @@
 #define CHDIR(_argc, _argv) ({                                                 \
     int _rc = 0;                                                               \
     if (_argc > 1) _rc = chdir(_argv[1]);                                      \
-    else fprintf(stdout, "Please specify directory to change.\n");             \
+    else fprintf(stdout, CHDIR_ERR);                                           \
     _rc;                                                                       \
 })
 
@@ -99,11 +110,11 @@
             getrlimit(RLIMIT_AS, &new_lim);                                    \
             fprintf(stdout, "new mem limit %llu bytes\n", new_lim.rlim_cur);   \
         } else {                                                               \
-            fprintf(stdout, "set limit failed\n");                             \
+            fprintf(stdout, SETLIM_ERR);                                       \
             _rc = -1;                                                          \
         }                                                                      \
     } else {                                                                   \
-        fprintf(stdout, "Input a number, svp!\n");                             \
+        fprintf(stdout, SETLIM_NAN);                                           \
         _rc = -1;                                                              \
     }                                                                          \
     _rc;                                                                       \
@@ -119,35 +130,37 @@
     }                                                                          \
 }
 
-#define EXEC(_argc, _argv, _chist, _nhist) ({                                  \
-    int _rc;                                                                   \
+#define EXEC(_argc, _argv, _chist, _nhist) {                                   \
     if (CATCH_COMMAND(_argv[0], "history")) {                                  \
         PRINT_HISTORY(_chist, _nhist);                                         \
         exit(EXIT_SUCCESS);                                                    \
     } else {                                                                   \
-        _rc = execvp(_argv[0], _argv);                                         \
+        execvp(_argv[0], _argv);                                               \
     }                                                                          \
-    _rc;                                                                       \
-})
+}
 
 #define ARGPARSE(_unparsed, _argc, _args) {                                    \
-    int _i = 0;                                                                \
-    char *_carg = strtok(_unparsed, CMD_DELIM);                                \
-    while (_carg != NULL) {                                                    \
-        _args[_i] = _carg;                                                     \
-        _i = _i + 1;                                                           \
-        _carg = strtok(NULL, CMD_DELIM);                                       \
-        if (_carg != NULL)                                                     \
-            *(_carg - 1) = '\0';                                               \
+    int _unparsed_ptr = 0, len = strlen(_unparsed);                            \
+    while (_unparsed[_unparsed_ptr] == ' ')                                    \
+        _unparsed_ptr += 1;                                                    \
+    _argc = 0;                                                                 \
+    _args[_argc++] = _unparsed + _unparsed_ptr;                                \
+    for (int i = _unparsed_ptr; i < len - 1; i++) {                            \
+        if (_unparsed[i] == ' ' || _unparsed[i] == '\n') {                     \
+            _unparsed[i] = '\0';                                               \
+            _args[_argc++] = _unparsed + i + 1;                                \
+        }                                                                      \
     }                                                                          \
-    _argc = _i;                                                                \
+    if (_unparsed[len - 1] == ' ' ||                                           \
+        _unparsed[len - 1] == '\n' )                                           \
+        _unparsed[len - 1] = '\0';                                             \
 }
 
 #define SYSTEM(_argc, _argv, _sys_argc, _sys_argv,                             \
                _pipe_ptr, _pipe_argc, _pipe_argv,                              \
-               _curr_history, _num_history) {                                  \
-    int _rc;                                                                   \
-    if (_pipe_ptr != NULL) {                                                   \
+               _curr_history, _num_history) ({                                 \
+    int _rc = 0;                                                               \
+    if (_sys_argc > 1 && _pipe_ptr != NULL) {                                  \
         int _pipe_left, _pipel_stat, _fdp[2];                                  \
         pipe(_fdp);                                                            \
         _pipe_left = fork();                                                   \
@@ -161,7 +174,7 @@
             } else if (_pipe_right == 0) {                                     \
                 _fd = open(_sys_argv[1], O_RDONLY);                            \
                 dup2(_fd, fileno(stdin));                                      \
-                _rc = EXEC(_pipe_argc, _pipe_argv,                             \
+                EXEC(_pipe_argc, _pipe_argv,                                   \
                            _curr_history, _num_history);                       \
             } else {                                                           \
                 close(_fdp[0]);                                                \
@@ -170,7 +183,7 @@
                 fflush(_fdpp);                                                 \
                 _fd = open(_sys_argv[1], O_WRONLY);                            \
                 dup2(_fd, fileno(stdout));                                     \
-                _rc = EXEC(_argc, _argv, _curr_history, _num_history);         \
+                EXEC(_argc, _argv, _curr_history, _num_history);               \
             }                                                                  \
         } else {                                                               \
             int _gcpid, _gcstat;                                               \
@@ -179,6 +192,14 @@
             fscanf(_fdpp, "%d", &_gcpid);                                      \
             waitpid(_gcpid, &_gcstat, WUNTRACED);                              \
             waitpid(_pipe_left, &_pipel_stat, WUNTRACED);                      \
+            if (!WIFEXITED(_gcstat)) {                                         \
+                printf(PIPEL_ERR, WEXITSTATUS(_gcstat));                       \
+                _rc = -1;                                                      \
+            }                                                                  \
+            if (!WIFEXITED(_pipel_stat)) {                                     \
+                printf(PIPER_ERR, WEXITSTATUS(_pipel_stat));                   \
+                _rc = -1;                                                      \
+            }                                                                  \
         }                                                                      \
     } else {                                                                   \
         int _child_pid, _child_status;                                         \
@@ -186,14 +207,17 @@
         if (_child_pid < 0) {                                                  \
             _rc = -1;                                                          \
         } else if (_child_pid == 0) {                                          \
-            _rc = EXEC(_argc, _argv, _curr_history, _num_history);             \
+            EXEC(_argc, _argv, _curr_history, _num_history);                   \
         } else {                                                               \
-            _rc = waitpid(_child_pid, &_child_status, WUNTRACED);              \
+            waitpid(_child_pid, &_child_status, WUNTRACED);                    \
+            if (!WIFEXITED(_child_status)) {                                   \
+                printf(CHILD_ERR, WEXITSTATUS(_child_status));                 \
+                _rc = -1;                                                      \
+            }                                                                  \
         }                                                                      \
     }                                                                          \
-    if (_rc < 0)                                                               \
-        exit(EXIT_FAILURE);                                                    \
-}
+    _rc;                                                                       \
+})
 
 sigjmp_buf keep_running;
 int curr_history = 0;
@@ -208,28 +232,11 @@ char *pipe_ptr = NULL;
 char *ts_argv[ARGS_LEN];
 char *pipe_argv[ARGS_LEN];
 
-void sigint_handler(int sig) {
-    POSIX_SIGNAL;
-    printf("\nWould you like to quit [y/N]: ");
-    fflush(stdout);
-    char ans[INPUT_LEN] = {0};
-    fgets(ans, INPUT_LEN, stdin);
-    if (ans[0] == 'y' || ans[0] == 'Y') 
-        exit(EXIT_SUCCESS);
-    siglongjmp(keep_running, 1);
-}
-
-void sigtstp_handler(int sig) {
-    POSIX_SIGNAL;
-    siglongjmp(keep_running, 1);
-}
+void sigint_handler(int sig);
+void sigtstp_handler(int sig);
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Please specify location of FIFO pipe.\n");
-        exit(EXIT_FAILURE);
-    }
-    POSIX_SIGNAL;
+    POSIX_SIGNAL(sigint_handler, sigtstp_handler);
     while (TRUE) {
         // Get a line
         FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
@@ -242,26 +249,50 @@ int main(int argc, char *argv[]) {
             break;
         INSERT_HISTORY(history, curr_history, num_history, line);
         DETECT_PIPE(line, pipe_ptr);
-        if (pipe_ptr != NULL)
-            ARGPARSE(pipe_ptr, pipe_argc, pipe_argv);
+        if (pipe_ptr != NULL) {
+            if (argc < 2)
+                printf(PIPE_WARN);
+            else
+                ARGPARSE(pipe_ptr, pipe_argc, pipe_argv);
+        }
         ARGPARSE(line, ts_argc, ts_argv);
         // exec
+        int rc;
         if (CATCH_COMMAND(ts_argv[0], "chdir")) {
-            CHDIR(ts_argc, ts_argv);
-        } else if (pipe_ptr != NULL && 
+            rc = CHDIR(ts_argc, ts_argv);
+        } else if (argc > 1 && pipe_ptr != NULL && 
                    CATCH_COMMAND(pipe_argv[0], "chdir")) {
-            CHDIR(pipe_argc, pipe_argv);
+            rc = CHDIR(pipe_argc, pipe_argv);
         } else if (CATCH_COMMAND(ts_argv[0], "limit")) {
-            LIMIT(ts_argc, ts_argv);
-        } else if (pipe_ptr != NULL && 
+            rc = LIMIT(ts_argc, ts_argv);
+        } else if (argc > 1 && pipe_ptr != NULL && 
                    CATCH_COMMAND(pipe_argv[0], "limit")) {
-            LIMIT(pipe_argc, pipe_argv);
+            rc = LIMIT(pipe_argc, pipe_argv);
         } else {
-            SYSTEM(ts_argc, ts_argv, argc, argv, 
+            rc = SYSTEM(ts_argc, ts_argv, argc, argv, 
                    pipe_ptr, pipe_argc, pipe_argv, 
                    curr_history, num_history);
         }
+        // error handling
+        if (rc == -1)
+            printf(EXEC_FAIL);
     }
     printf("\n");
     return EXIT_SUCCESS;
+}
+
+void sigint_handler(int sig) {
+    POSIX_SIGNAL(sigint_handler, sigtstp_handler);
+    printf(QUIT_PROMPT);
+    fflush(stdout);
+    char ans[INPUT_LEN] = {0};
+    fgets(ans, INPUT_LEN, stdin);
+    if (ans[0] == 'y' || ans[0] == 'Y') 
+        exit(EXIT_SUCCESS);
+    siglongjmp(keep_running, 1);
+}
+
+void sigtstp_handler(int sig) {
+    POSIX_SIGNAL(sigint_handler, sigtstp_handler);
+    siglongjmp(keep_running, 1);
 }
