@@ -29,7 +29,7 @@
 #define PIPER_ERR       "\033[1;31mright child exited with = %d\033[0m\n"
 #define CHILD_ERR       "\033[1;31mchild exited with = %d\033[0m\n"
 #define EXEC_FAIL       "\033[1;31mExecution Failed\033[0m\n"
-#define QUIT_PROMPT     "\n\033[1;31mWould you like to quit [y/N]:\033[0m "
+#define QUIT_PROMPT     "\n\033[0;33mWould you like to quit [y/N]:\033[0m "
 
 #define GET_IPAST(_i, _chist) (_chist - _i + HISTORY_LIMIT) % HISTORY_LIMIT
 
