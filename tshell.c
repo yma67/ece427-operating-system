@@ -13,10 +13,11 @@
 #define TRUE            1
 #define FALSE           0
 #define INPUT_LEN       201
-#define HISTORY_LIMIT   4
+#define HISTORY_LIMIT   100
 #define ARGS_LEN        30
 #define PWD_LEN         80
 #define PROMPT_LEN      500
+#define PRINT_ERR       0
 #define PROMPT          "\033[1;32mott-ads-148\033[0m:\033[1;34m"
 #define PROMPT_SUF      "\033[0m > "
 #define PIPE_WARN       "\033[0;33m[Warning]:To enable pipe, a FIFO should be "\
@@ -30,9 +31,10 @@
 #define CHILD_ERR       "\033[1;31mchild exited with = %d\033[0m\n"
 #define EXEC_FAIL       "\033[1;31mExecution Failed\033[0m\n"
 #define QUIT_PROMPT     "\n\033[0;33mWould you like to quit [y/N]:\033[0m "
+#define GET_LIM         "\033[0;33mold mem limit %lu bytes\033[0m\n"
+#define SET_LIM         "\033[0;33mnew mem limit %lu bytes\033[0m\n"
 
 #define GET_IPAST(_i, _chist) (_chist - _i + HISTORY_LIMIT) % HISTORY_LIMIT
-
 #define CATCH_COMMAND(_line, _cmd) !strncmp(_line, _cmd, strlen(_cmd))
 
 #define FRESH_CMD(_argv, _argc, _line, _history, _history_count, _prompt,      \
@@ -103,12 +105,12 @@
         struct rlimit old_lim, new_lim;                                        \
         memset(&old_lim, 0, sizeof(struct rlimit));                            \
         getrlimit(RLIMIT_AS, &old_lim);                                        \
-        fprintf(stdout, "old mem limit %llu bytes\n", old_lim.rlim_cur);       \
+        fprintf(stdout, GET_LIM, old_lim.rlim_cur);                            \
         memcpy(&new_lim, &old_lim, sizeof(struct rlimit));                     \
         new_lim.rlim_cur = atoi(_argv[1]);                                     \
         if (setrlimit(RLIMIT_AS, &new_lim) != -1) {                            \
             getrlimit(RLIMIT_AS, &new_lim);                                    \
-            fprintf(stdout, "new mem limit %llu bytes\n", new_lim.rlim_cur);   \
+            fprintf(stdout, GET_LIM, new_lim.rlim_cur);                        \
         } else {                                                               \
             fprintf(stdout, SETLIM_ERR);                                       \
             _rc = -1;                                                          \
@@ -192,11 +194,11 @@
             fscanf(_fdpp, "%d", &_gcpid);                                      \
             waitpid(_gcpid, &_gcstat, WUNTRACED);                              \
             waitpid(_pipe_left, &_pipel_stat, WUNTRACED);                      \
-            if (!WIFEXITED(_gcstat)) {                                         \
+            if (PRINT_ERR && !WIFEXITED(_gcstat)) {                            \
                 printf(PIPEL_ERR, WEXITSTATUS(_gcstat));                       \
                 _rc = -1;                                                      \
             }                                                                  \
-            if (!WIFEXITED(_pipel_stat)) {                                     \
+            if (PRINT_ERR && !WIFEXITED(_pipel_stat)) {                        \
                 printf(PIPER_ERR, WEXITSTATUS(_pipel_stat));                   \
                 _rc = -1;                                                      \
             }                                                                  \
@@ -210,7 +212,7 @@
             EXEC(_argc, _argv, _curr_history, _num_history);                   \
         } else {                                                               \
             waitpid(_child_pid, &_child_status, WUNTRACED);                    \
-            if (!WIFEXITED(_child_status)) {                                   \
+            if (PRINT_ERR && !WIFEXITED(_child_status)) {                      \
                 printf(CHILD_ERR, WEXITSTATUS(_child_status));                 \
                 _rc = -1;                                                      \
             }                                                                  \
