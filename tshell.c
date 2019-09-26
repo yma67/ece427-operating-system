@@ -10,6 +10,11 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 
+// Specify whether print prompt or error code at compile time!
+// gcc tshell.c -o -DPRINT_PROMPT=1 to enable print of prompt
+// gcc tshell.c -o -DPRINT_RET=1 to enable error code printing
+// gcc tshell.c -o -DPRINT_PROMPT=1 -DPRINT_RET=1 to enable both
+
 #define TRUE            1
 #define FALSE           0
 #define INPUT_LEN       201
@@ -17,9 +22,8 @@
 #define ARGS_LEN        30
 #define PWD_LEN         80
 #define PROMPT_LEN      500
-#define PRINT_ERR       0
 #define PROMPT          "\033[1;32mott-ads-148\033[0m:\033[1;34m"
-#define PROMPT_SUF      "\033[0m > "
+#define PROMPT_SUF      "\033[0m$ "
 #define PIPE_WARN       "\033[0;33m[Warning]:To enable pipe, a FIFO should be "\
                         "passed as the second argument. Only the first command"\
                         " will be executed.\033[0m\n"
@@ -37,6 +41,7 @@
 #define GET_IPAST(_i, _chist) (_chist - _i + HISTORY_LIMIT) % HISTORY_LIMIT
 #define CATCH_COMMAND(_line, _cmd) !strncmp(_line, _cmd, strlen(_cmd))
 
+#ifdef PRINT_PROMPT
 #define FRESH_CMD(_argv, _argc, _line, _history, _history_count, _prompt,      \
                   _pwd, _pipe_ptr, _pipe_argv, _pipe_argc) {                   \
     _argc = 0;                                                                 \
@@ -55,6 +60,25 @@
     printf("%s", _prompt);                                                     \
     fflush(stdout);                                                            \
 }
+#else
+#define FRESH_CMD(_argv, _argc, _line, _history, _history_count, _prompt,      \
+                  _pwd, _pipe_ptr, _pipe_argv, _pipe_argc) {                   \
+    _argc = 0;                                                                 \
+    _pipe_argc = 0;                                                            \
+    _pipe_ptr = NULL;                                                          \
+    memset(_line, '\0', sizeof(char) * INPUT_LEN);                             \
+    memset(_pwd, '\0', sizeof(char) * PWD_LEN);                                \
+    memset(_pipe_argv, 0, sizeof(char *) * ARGS_LEN);                          \
+    memset(_argv, 0, sizeof(char *) * ARGS_LEN);                               \
+    memset(_history[_history_count], '\0', sizeof(char) * INPUT_LEN);          \
+    memset(_prompt, '\0', sizeof(char) * PROMPT_LEN);                          \
+    getcwd(_pwd, PWD_LEN);                                                     \
+    strcpy(_prompt, PROMPT);                                                   \
+    strcat(_prompt, _pwd);                                                     \
+    strcat(_prompt, PROMPT_SUF);                                               \
+    fflush(stdout);                                                            \
+}
+#endif
 
 #define POSIX_SIGNAL(_sigint_handler, _sigtstp_handler) {                      \
     struct sigaction sgint, sgtstp;                                            \
@@ -100,24 +124,13 @@
 })
 
 #define LIMIT(_argc, _argv) ({                                                 \
-    int _rc;                                                                   \
+    int _rc = -1;                                                              \
     if (_argc > 1 && IS_NUMBER(_argv[1])) {                                    \
-        struct rlimit old_lim, new_lim;                                        \
-        memset(&old_lim, 0, sizeof(struct rlimit));                            \
-        getrlimit(RLIMIT_AS, &old_lim);                                        \
-        fprintf(stdout, GET_LIM, old_lim.rlim_cur);                            \
-        memcpy(&new_lim, &old_lim, sizeof(struct rlimit));                     \
-        new_lim.rlim_cur = atoi(_argv[1]);                                     \
-        if (setrlimit(RLIMIT_AS, &new_lim) != -1) {                            \
-            getrlimit(RLIMIT_AS, &new_lim);                                    \
-            fprintf(stdout, GET_LIM, new_lim.rlim_cur);                        \
-        } else {                                                               \
-            fprintf(stdout, SETLIM_ERR);                                       \
-            _rc = -1;                                                          \
-        }                                                                      \
-    } else {                                                                   \
-        fprintf(stdout, SETLIM_NAN);                                           \
-        _rc = -1;                                                              \
+        struct rlimit _lim;                                                    \
+        memset(&_lim, 0, sizeof(struct rlimit));                               \
+        getrlimit(RLIMIT_AS, &_lim);                                           \
+        _lim.rlim_cur = atoi(_argv[1]);                                        \
+        _rc = setrlimit(RLIMIT_AS, &_lim);                                     \
     }                                                                          \
     _rc;                                                                       \
 })
@@ -137,7 +150,8 @@
         PRINT_HISTORY(_chist, _nhist);                                         \
         exit(EXIT_SUCCESS);                                                    \
     } else {                                                                   \
-        execvp(_argv[0], _argv);                                               \
+        if (execvp(_argv[0], _argv) == -1)                                     \
+            exit(EXIT_SUCCESS);                                                \
     }                                                                          \
 }
 
@@ -154,10 +168,11 @@
         }                                                                      \
     }                                                                          \
     if (_unparsed[len - 1] == ' ' ||                                           \
-        _unparsed[len - 1] == '\n' )                                           \
+        _unparsed[len - 1] == '\n')                                            \
         _unparsed[len - 1] = '\0';                                             \
 }
 
+#ifdef PRINT_RET
 #define SYSTEM(_argc, _argv, _sys_argc, _sys_argv,                             \
                _pipe_ptr, _pipe_argc, _pipe_argv,                              \
                _curr_history, _num_history) ({                                 \
@@ -194,11 +209,9 @@
             fscanf(_fdpp, "%d", &_gcpid);                                      \
             waitpid(_gcpid, &_gcstat, WUNTRACED);                              \
             waitpid(_pipe_left, &_pipel_stat, WUNTRACED);                      \
-            if (PRINT_ERR && !WIFEXITED(_gcstat)) {                            \
+            if (!WIFEXITED(_gcstat))                                           \
                 printf(PIPEL_ERR, WEXITSTATUS(_gcstat));                       \
-                _rc = -1;                                                      \
-            }                                                                  \
-            if (PRINT_ERR && !WIFEXITED(_pipel_stat)) {                        \
+            if (!WIFEXITED(_pipel_stat)) {                                     \
                 printf(PIPER_ERR, WEXITSTATUS(_pipel_stat));                   \
                 _rc = -1;                                                      \
             }                                                                  \
@@ -212,7 +225,7 @@
             EXEC(_argc, _argv, _curr_history, _num_history);                   \
         } else {                                                               \
             waitpid(_child_pid, &_child_status, WUNTRACED);                    \
-            if (PRINT_ERR && !WIFEXITED(_child_status)) {                      \
+            if (!WIFEXITED(_child_status)) {                                   \
                 printf(CHILD_ERR, WEXITSTATUS(_child_status));                 \
                 _rc = -1;                                                      \
             }                                                                  \
@@ -220,12 +233,65 @@
     }                                                                          \
     _rc;                                                                       \
 })
+#else
+#define SYSTEM(_argc, _argv, _sys_argc, _sys_argv,                             \
+               _pipe_ptr, _pipe_argc, _pipe_argv,                              \
+               _curr_history, _num_history) ({                                 \
+    int _rc = 0;                                                               \
+    if (_sys_argc > 1 && _pipe_ptr != NULL) {                                  \
+        int _pipe_left, _pipel_stat, _fdp[2];                                  \
+        pipe(_fdp);                                                            \
+        _pipe_left = fork();                                                   \
+        if (_pipe_left < 0) {                                                  \
+            _rc = -1;                                                          \
+        } else if (_pipe_left == 0) {                                          \
+            int _pipe_right, _pipe_stat, _fd;                                  \
+            _pipe_right = fork();                                              \
+            if (_pipe_right < 0) {                                             \
+                _rc = -1;                                                      \
+            } else if (_pipe_right == 0) {                                     \
+                _fd = open(_sys_argv[1], O_RDONLY);                            \
+                dup2(_fd, fileno(stdin));                                      \
+                EXEC(_pipe_argc, _pipe_argv,                                   \
+                           _curr_history, _num_history);                       \
+            } else {                                                           \
+                close(_fdp[0]);                                                \
+                FILE *_fdpp = fdopen(_fdp[1], "w");                            \
+                fprintf(_fdpp, "%d", _pipe_right);                             \
+                fflush(_fdpp);                                                 \
+                _fd = open(_sys_argv[1], O_WRONLY);                            \
+                dup2(_fd, fileno(stdout));                                     \
+                EXEC(_argc, _argv, _curr_history, _num_history);               \
+            }                                                                  \
+        } else {                                                               \
+            int _gcpid, _gcstat;                                               \
+            close(_fdp[1]);                                                    \
+            FILE *_fdpp = fdopen(_fdp[0], "r");                                \
+            fscanf(_fdpp, "%d", &_gcpid);                                      \
+            waitpid(_gcpid, &_gcstat, WUNTRACED);                              \
+            waitpid(_pipe_left, &_pipel_stat, WUNTRACED);                      \
+        }                                                                      \
+    } else {                                                                   \
+        int _child_pid, _child_status;                                         \
+        _child_pid = fork();                                                   \
+        if (_child_pid < 0) {                                                  \
+            _rc = -1;                                                          \
+        } else if (_child_pid == 0) {                                          \
+            EXEC(_argc, _argv, _curr_history, _num_history);                   \
+        } else {                                                               \
+            waitpid(_child_pid, &_child_status, WUNTRACED);                    \
+        }                                                                      \
+    }                                                                          \
+    _rc;                                                                       \
+})
+#endif
 
 sigjmp_buf keep_running;
 int curr_history = 0;
 int num_history = 0;
 int ts_argc = 0;
 int pipe_argc = 0;
+int has_child = FALSE;
 char pwd[PWD_LEN];
 char history[HISTORY_LIMIT][INPUT_LEN];
 char line[INPUT_LEN];
@@ -234,33 +300,50 @@ char *pipe_ptr = NULL;
 char *ts_argv[ARGS_LEN];
 char *pipe_argv[ARGS_LEN];
 
-void sigint_handler(int sig);
-void sigtstp_handler(int sig);
+void sigint_handler(int sig) {
+    if (has_child)
+        return;
+    printf(QUIT_PROMPT);
+    fflush(stdout);
+    char ans[INPUT_LEN] = {0};
+    fgets(ans, INPUT_LEN, stdin);
+    if (ans[0] == 'y' || ans[0] == 'Y')
+        exit(EXIT_SUCCESS);
+    siglongjmp(keep_running, 1);
+}
+
+void sigtstp_handler(int sig) {
+    siglongjmp(keep_running, 1);
+}
 
 int main(int argc, char *argv[]) {
     POSIX_SIGNAL(sigint_handler, sigtstp_handler);
     while (TRUE) {
-        // Get a line
+        // get a line
         FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
                   prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
-        fgets(line, INPUT_LEN, stdin);
-        if (sigsetjmp(keep_running, 1)) 
-            continue;
-        // if len > 1 then
-        if (strlen(line) <= 1)
-            break;
+        if (sigsetjmp(keep_running, 1)) {
+            FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
+                      prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
+	    }
+	    fgets(line, PROMPT_LEN, stdin);
+        // if len < 1 then exit
+        if (strlen(line) < 2) 
+            exit(EXIT_SUCCESS);
         INSERT_HISTORY(history, curr_history, num_history, line);
         DETECT_PIPE(line, pipe_ptr);
-        if (pipe_ptr != NULL) {
-            if (argc < 2)
-                printf(PIPE_WARN);
-            else
-                ARGPARSE(pipe_ptr, pipe_argc, pipe_argv);
-        }
+        if (pipe_ptr != NULL && argc < 2)
+            printf(PIPE_WARN);
+        else if (pipe_ptr != NULL)
+            ARGPARSE(pipe_ptr, pipe_argc, pipe_argv);
         ARGPARSE(line, ts_argc, ts_argv);
         // exec
         int rc;
-        if (CATCH_COMMAND(ts_argv[0], "chdir")) {
+        has_child = TRUE;
+        if (CATCH_COMMAND(ts_argv[0], "exit")) {
+            exit(EXIT_SUCCESS);
+        } else if (CATCH_COMMAND(ts_argv[0], "chdir") ||
+                   CATCH_COMMAND(ts_argv[0], "cd")) {
             rc = CHDIR(ts_argc, ts_argv);
         } else if (argc > 1 && pipe_ptr != NULL && 
                    CATCH_COMMAND(pipe_argv[0], "chdir")) {
@@ -272,29 +355,14 @@ int main(int argc, char *argv[]) {
             rc = LIMIT(pipe_argc, pipe_argv);
         } else {
             rc = SYSTEM(ts_argc, ts_argv, argc, argv, 
-                   pipe_ptr, pipe_argc, pipe_argv, 
-                   curr_history, num_history);
+                        pipe_ptr, pipe_argc, pipe_argv, 
+                        curr_history, num_history);
         }
+        has_child = FALSE;
         // error handling
         if (rc == -1)
             printf(EXEC_FAIL);
     }
     printf("\n");
     return EXIT_SUCCESS;
-}
-
-void sigint_handler(int sig) {
-    POSIX_SIGNAL(sigint_handler, sigtstp_handler);
-    printf(QUIT_PROMPT);
-    fflush(stdout);
-    char ans[INPUT_LEN] = {0};
-    fgets(ans, INPUT_LEN, stdin);
-    if (ans[0] == 'y' || ans[0] == 'Y') 
-        exit(EXIT_SUCCESS);
-    siglongjmp(keep_running, 1);
-}
-
-void sigtstp_handler(int sig) {
-    POSIX_SIGNAL(sigint_handler, sigtstp_handler);
-    siglongjmp(keep_running, 1);
 }
