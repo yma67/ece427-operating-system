@@ -325,8 +325,8 @@ int main(int argc, char *argv[]) {
         if (sigsetjmp(keep_running, 1)) {
             FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
                       prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
-	    }
-	    fgets(line, PROMPT_LEN, stdin);
+        }
+        fgets(line, PROMPT_LEN, stdin);
         // if len < 1 then exit
         if (strlen(line) < 2) 
             exit(EXIT_SUCCESS);
@@ -353,7 +353,9 @@ int main(int argc, char *argv[]) {
         } else if (argc > 1 && pipe_ptr != NULL && 
                    CATCH_COMMAND(pipe_argv[0], "limit")) {
             rc = LIMIT(pipe_argc, pipe_argv);
-        } else {
+	} else if (CATCH_COMMAND(ts_argv[0], "history")) {
+            PRINT_HISTORY(curr_history, num_history);
+	} else {
             rc = SYSTEM(ts_argc, ts_argv, argc, argv, 
                         pipe_ptr, pipe_argc, pipe_argv, 
                         curr_history, num_history);
