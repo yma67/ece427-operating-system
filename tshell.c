@@ -18,13 +18,13 @@
 #define TRUE            1
 #define FALSE           0
 #define INPUT_LEN       201
-#define HISTORY_LIMIT   100
+#define HISTORY_LIMIT   3
 #define ARGS_LEN        30
 #define PWD_LEN         80
 #define PROMPT_LEN      500
 #define TOKEN           " \n"
 #define PROMPT          "\033[1;32mott-ads-148\033[0m:\033[1;34m"
-#define PROMPT_SUF      "\033[0m$ "
+#define PROMPT_SUF      "\033[0m > "
 #define PIPE_WARN       "\033[0;33m[Warning]:To enable pipe, a FIFO should be "\
                         "passed as the second argument. Only the first command"\
                         " will be executed.\033[0m\n"
@@ -119,7 +119,7 @@
  * @return void
  */
 #define PRINT_HISTORY(_chist, _num_hist) {                                     \
-    for (int i = 1; i > _num_hist && i < HISTORY_LIMIT + 1; i++)               \
+    for (int i = 1; i < HISTORY_LIMIT + 1 && i < _num_hist + 1; i++)           \
         fprintf(stdout, "%d\t%s\n", i, history[GET_IPAST(i, _chist)]);         \
 }
 
