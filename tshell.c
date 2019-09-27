@@ -41,6 +41,13 @@
 #define GET_IPAST(_i, _chist) (_chist - _i + HISTORY_LIMIT) % HISTORY_LIMIT
 #define CATCH_COMMAND(_line, _cmd) !strncmp(_line, _cmd, strlen(_cmd))
 
+/**
+ * fresh_cmd
+ * prepare for next command, cleanup, print, and flush io
+ * init with memset() to 0
+ * @param everyting to be renewed
+ * @return void
+ */
 #ifdef PRINT_PROMPT
 #define FRESH_CMD(_argv, _argc, _line, _history, _history_count, _prompt,      \
                   _pwd, _pipe_ptr, _pipe_argv, _pipe_argc) {                   \
@@ -80,6 +87,13 @@
 }
 #endif
 
+/**
+ * posix_signal
+ * similar as signal() system call, but uses sigaction(), which is posix and 
+ * therefore portable
+ * @param sigint_handler, sigtstp_handler
+ * @return void
+ */
 #define POSIX_SIGNAL(_sigint_handler, _sigtstp_handler) {                      \
     struct sigaction sgint, sgtstp;                                            \
     sgint.sa_flags = 1;                                                        \
@@ -90,6 +104,11 @@
     sigaction(SIGTSTP, &sgtstp, NULL);                                         \
 }
 
+/**
+ * insert_history
+ * @param history, current history, number of history, line
+ * @return void
+ */
 #define INSERT_HISTORY(_hist, _chist, _num_hist, _line) {                      \
     strcpy(_hist[_chist], _line);                                              \
     _hist[_chist][strlen(_line) - 1] = '\0';                                   \
@@ -97,14 +116,23 @@
     _num_hist += 1;                                                            \
 }
 
+/**
+ * print_history
+ * print all history we have
+ * @param current history, number history
+ * @return void
+ */
 #define PRINT_HISTORY(_chist, _num_hist) {                                     \
-    for (int i = 1; i < HISTORY_LIMIT + 1; i++) {                              \
-        if (i > _num_hist)                                                     \
-            break;                                                             \
+    for (int i = 1; i > _num_hist && i < HISTORY_LIMIT + 1; i++)               \
         fprintf(stdout, "%d\t%s\n", i, history[GET_IPAST(i, _chist)]);         \
-    }                                                                          \
 }
 
+/**
+ * is_number (utility)
+ * check whether string is a number string
+ * @param string to detect
+ * @return is_a_number_string
+ */
 #define IS_NUMBER(_str) ({                                                     \
     int _is_num = 1;                                                           \
     for (int i = 0; i < strlen(_str); i++) {                                   \
@@ -116,6 +144,12 @@
     _is_num;                                                                   \
 })
 
+/**
+ * chdir (internal command)
+ * change running directory of this shell
+ * @param argc, argv
+ * @return return code
+ */
 #define CHDIR(_argc, _argv) ({                                                 \
     int _rc = 0;                                                               \
     if (_argc > 1) _rc = chdir(_argv[1]);                                      \
@@ -123,6 +157,13 @@
     _rc;                                                                       \
 })
 
+/**
+ * limit (internal command)
+ * getlimit to get upper bound of hard limit, and change only soft limit
+ * to limit all child process of the shell to have total mem usage <= argv[1]
+ * @param argc, argv
+ * @return return code of setrlimit() sys call
+ */
 #define LIMIT(_argc, _argv) ({                                                 \
     int _rc = -1;                                                              \
     if (_argc > 1 && IS_NUMBER(_argv[1])) {                                    \
@@ -135,6 +176,12 @@
     _rc;                                                                       \
 })
 
+/**
+ * detect pipe
+ * detect whether we have pipe in a command
+ * @param line, pipe_pointer (return by)
+ * @return void (location of pipe using pointer)
+ */
 #define DETECT_PIPE(_line, _pipe_ptr) {                                        \
     for (int i = 0; i < strlen(_line); i++) {                                  \
         if (_line[i] == '|') {                                                 \
@@ -145,16 +192,27 @@
     }                                                                          \
 }
 
+/**
+ * exec
+ * read history or execute system command, exit if exec sys call failed
+ * @param argc, argv, history(current, numberof)
+ * @return void 
+ */
 #define EXEC(_argc, _argv, _chist, _nhist) {                                   \
     if (CATCH_COMMAND(_argv[0], "history")) {                                  \
         PRINT_HISTORY(_chist, _nhist);                                         \
-        _exit(EXIT_SUCCESS);                                                   \
     } else {                                                                   \
         execvp(_argv[0], _argv);                                               \
-        _exit(EXIT_SUCCESS);                                                   \
     }                                                                          \
+    _exit(EXIT_SUCCESS);                                                       \
 }
 
+/**
+ * argparse
+ * parse command line arguments by ' '
+ * @param line, argc, argv
+ * @return void (parsed argv through argv (macor pass by name))
+ */
 #define ARGPARSE(_unparsed, _argc, _args) {                                    \
     int _unparsed_ptr = 0, len = strlen(_unparsed);                            \
     while (_unparsed[_unparsed_ptr] == ' ')                                    \
@@ -172,6 +230,26 @@
         _unparsed[len - 1] = '\0';                                             \
 }
 
+/** 
+ * system
+ * For Non-pipe 
+ *    -----------------------<-------------------------<------------
+ *    |                                                            |
+ * Parent---fork()----------------------------------------wait()--->
+ *            |                                             |
+ *            ------>exec()--------//--------->exit()------->
+ * For Pipe
+ *    -----------------------<-------------------------<------------------
+ *    |                                                                  |
+ * Parent---fork()-----------------scanf()----------------------wait()--->
+ *            |[use scanf's blocking]| pipe(): granchild PID      |
+ *            ------>fork()-------printf()-->exec()--//->exit()   |
+ *                     |                                          |
+ *                     --------------------->exec()--//-->exit()---
+ * Child status could be collected by parent
+ * @param argc, argv for left/right pipe, history
+ * @return return code
+ */
 #ifdef PRINT_RET
 #define SYSTEM(_argc, _argv, _sys_argc, _sys_argv,                             \
                _pipe_ptr, _pipe_argc, _pipe_argv,                              \
@@ -320,13 +398,13 @@ int main(int argc, char *argv[]) {
     POSIX_SIGNAL(sigint_handler, sigtstp_handler);
     FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
               prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
-    if (sigsetjmp(keep_running, 1)) {
+    if (sigsetjmp(keep_running, 1)) 
         FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
                   prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
-    }
+    // if get_a_line() not encounter EOF
     while (fgets(line, PROMPT_LEN, stdin)) {
-        // if len < 1 then exit
-        if (line == NULL || !strncmp(line, "\n", 1)) 
+        // if len < 1 then exit()
+        if (!strncmp(line, "\n", 1)) 
             exit(EXIT_SUCCESS);
         INSERT_HISTORY(history, curr_history, num_history, line);
         DETECT_PIPE(line, pipe_ptr);
@@ -335,27 +413,26 @@ int main(int argc, char *argv[]) {
         else if (pipe_ptr != NULL)
             ARGPARSE(pipe_ptr, pipe_argc, pipe_argv);
         ARGPARSE(line, ts_argc, ts_argv);
-        // exec
+        // my_system()/exec()
         int rc;
         has_child = TRUE;
-        if (CATCH_COMMAND(ts_argv[0], "exit")) {
+        if (CATCH_COMMAND(ts_argv[0], "exit"))
             exit(EXIT_SUCCESS);
-        } else if (CATCH_COMMAND(ts_argv[0], "chdir") ||
-                   CATCH_COMMAND(ts_argv[0], "cd")) {
+        else if (CATCH_COMMAND(ts_argv[0], "chdir") ||
+                   CATCH_COMMAND(ts_argv[0], "cd"))
             rc = CHDIR(ts_argc, ts_argv);
-        } else if (argc > 1 && pipe_ptr != NULL && 
-                   CATCH_COMMAND(pipe_argv[0], "chdir")) {
+        else if (argc > 1 && pipe_ptr != NULL && 
+                   CATCH_COMMAND(pipe_argv[0], "chdir")) 
             rc = CHDIR(pipe_argc, pipe_argv);
-        } else if (CATCH_COMMAND(ts_argv[0], "limit")) {
+        else if (CATCH_COMMAND(ts_argv[0], "limit")) 
             rc = LIMIT(ts_argc, ts_argv);
-        } else if (argc > 1 && pipe_ptr != NULL && 
-                   CATCH_COMMAND(pipe_argv[0], "limit")) {
+        else if (argc > 1 && pipe_ptr != NULL && 
+                   CATCH_COMMAND(pipe_argv[0], "limit"))
             rc = LIMIT(pipe_argc, pipe_argv);
-	} else {
+	    else 
             rc = SYSTEM(ts_argc, ts_argv, argc, argv, 
                         pipe_ptr, pipe_argc, pipe_argv, 
                         curr_history, num_history);
-        }
         has_child = FALSE;
         // error handling
         if (rc == -1)
