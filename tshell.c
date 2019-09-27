@@ -22,6 +22,7 @@
 #define ARGS_LEN        30
 #define PWD_LEN         80
 #define PROMPT_LEN      500
+#define TOKEN           " \n"
 #define PROMPT          "\033[1;32mott-ads-148\033[0m:\033[1;34m"
 #define PROMPT_SUF      "\033[0m$ "
 #define PIPE_WARN       "\033[0;33m[Warning]:To enable pipe, a FIFO should be "\
@@ -178,7 +179,8 @@
  * @return void (location of pipe using pointer)
  */
 #define DETECT_PIPE(_line, _pipe_ptr) {                                        \
-    for (int i = 0; i < strlen(_line); i++) {                                  \
+    int len = strlen(_line);                                                   \
+    for (int i = 0; i < len; i++) {                                            \
         if (_line[i] == '|') {                                                 \
             _line[i] = '\0';                                                   \
             _pipe_ptr = _line + i + 1;                                         \
@@ -228,25 +230,18 @@
 
 /**
  * argparse
- * parse command line arguments by ' '
+ * parse command line arguments by TOKEN
  * @param line, argc, argv
  * @return void (parsed argv through argv (macor pass by name))
  */
-#define ARGPARSE(_unparsed, _argc, _args) {                                    \
-    int _unparsed_ptr = 0, len = strlen(_unparsed);                            \
-    while (_unparsed[_unparsed_ptr] == ' ')                                    \
-        _unparsed_ptr += 1;                                                    \
-    _argc = 0;                                                                 \
-    _args[_argc++] = _unparsed + _unparsed_ptr;                                \
-    for (int i = _unparsed_ptr; i < len - 1; i++) {                            \
-        if (_unparsed[i] == ' ' || _unparsed[i] == '\n') {                     \
-            _unparsed[i] = '\0';                                               \
-            _args[_argc++] = _unparsed + i + 1;                                \
-        }                                                                      \
+#define ARGPARSE(_unparsed, _argc, _argv) {                                    \
+    char* token = strtok(_unparsed, TOKEN);                                    \
+    while (token) {                                                            \
+        if (_argc > 0)                                                         \
+            *(token - 1) = '\0';                                               \
+        _argv[_argc++] = token;                                                \
+        token = strtok(NULL, TOKEN);                                           \
     }                                                                          \
-    if (_unparsed[len - 1] == ' ' ||                                           \
-        _unparsed[len - 1] == '\n')                                            \
-        _unparsed[len - 1] = '\0';                                             \
 }
 
 /** 
@@ -303,7 +298,6 @@
             close(_fdp[1]);                                                    \
             FILE *_fdpp = fdopen(_fdp[0], "r");                                \
             fscanf(_fdpp, "%d", &_gcpid);                                      \
-            waitpid(_gcpid, &_gcstat, WUNTRACED);                              \
             WAIT(_gcpid, &_gcstat, PIPEL_ERR);                                 \
             _rc = WAIT(_pipe_left, &_pipel_stat, PIPER_ERR);                   \
         }                                                                      \
