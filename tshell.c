@@ -41,6 +41,12 @@
 #define GET_IPAST(_i, _chist) (_chist - _i + HISTORY_LIMIT) % HISTORY_LIMIT
 #define CATCH_COMMAND(_line, _cmd) !strncmp(_line, _cmd, strlen(_cmd))
 
+/**
+ * printp 
+ * function used for printing prompt
+ * @param pattern, args
+ * @return void
+ */
 #ifdef PRINT_PROMPT
 #define PRINTP(_p, ...) {                                                      \
     printf(_p, __VA_ARGS__);                                                   \
@@ -71,6 +77,7 @@
     getcwd(_pwd, PWD_LEN);                                                     \
     strcpy(_prompt, PROMPT);                                                   \
     strcat(_prompt, _pwd);                                                     \
+    strcat(_prompt, PROMPT_SUF);                                               \
     PRINTP("%s", _prompt);                                                     \
     fflush(stdout);                                                            \
 }
@@ -195,6 +202,12 @@
     _exit(EXIT_SUCCESS);                                                       \
 }
 
+/**
+ * wait 
+ * waitpid wrapper
+ * @param pid, stat, message
+ * @return return code -1 for error, other for good
+ */
 #ifdef PRINT_RET
 #define WAIT(_pid, _stat, _msg) ({                                             \
     int _rc = 0;                                                               \
