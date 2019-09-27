@@ -148,10 +148,10 @@
 #define EXEC(_argc, _argv, _chist, _nhist) {                                   \
     if (CATCH_COMMAND(_argv[0], "history")) {                                  \
         PRINT_HISTORY(_chist, _nhist);                                         \
-        exit(EXIT_SUCCESS);                                                    \
+        _exit(EXIT_SUCCESS);                                                   \
     } else {                                                                   \
-        if (execvp(_argv[0], _argv) == -1)                                     \
-            exit(EXIT_SUCCESS);                                                \
+        execvp(_argv[0], _argv);                                               \
+        _exit(EXIT_SUCCESS);                                                   \
     }                                                                          \
 }
 
@@ -318,17 +318,15 @@ void sigtstp_handler(int sig) {
 
 int main(int argc, char *argv[]) {
     POSIX_SIGNAL(sigint_handler, sigtstp_handler);
-    while (TRUE) {
-        // get a line
+    FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
+              prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
+    if (sigsetjmp(keep_running, 1)) {
         FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
                   prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
-        if (sigsetjmp(keep_running, 1)) {
-            FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
-                      prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
-        }
-        fgets(line, PROMPT_LEN, stdin);
+    }
+    while (fgets(line, PROMPT_LEN, stdin)) {
         // if len < 1 then exit
-        if (strlen(line) < 2) 
+        if (line == NULL || !strncmp(line, "\n", 1)) 
             exit(EXIT_SUCCESS);
         INSERT_HISTORY(history, curr_history, num_history, line);
         DETECT_PIPE(line, pipe_ptr);
@@ -353,8 +351,6 @@ int main(int argc, char *argv[]) {
         } else if (argc > 1 && pipe_ptr != NULL && 
                    CATCH_COMMAND(pipe_argv[0], "limit")) {
             rc = LIMIT(pipe_argc, pipe_argv);
-	} else if (CATCH_COMMAND(ts_argv[0], "history")) {
-            PRINT_HISTORY(curr_history, num_history);
 	} else {
             rc = SYSTEM(ts_argc, ts_argv, argc, argv, 
                         pipe_ptr, pipe_argc, pipe_argv, 
@@ -364,6 +360,8 @@ int main(int argc, char *argv[]) {
         // error handling
         if (rc == -1)
             printf(EXEC_FAIL);
+        FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
+                  prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
     }
     printf("\n");
     return EXIT_SUCCESS;
