@@ -41,6 +41,15 @@
 #define GET_IPAST(_i, _chist) (_chist - _i + HISTORY_LIMIT) % HISTORY_LIMIT
 #define CATCH_COMMAND(_line, _cmd) !strncmp(_line, _cmd, strlen(_cmd))
 
+#ifdef PRINT_PROMPT
+#define PRINTP(_p, ...) {                                                      \
+    printf(_p, __VA_ARGS__);                                                   \
+    fflush(stdout);                                                            \
+}
+#else
+#define PRINTP(_p, ...) fflush(stdout)
+#endif
+
 /**
  * fresh_cmd
  * prepare for next command, cleanup, print, and flush io
@@ -48,7 +57,6 @@
  * @param everyting to be renewed
  * @return void
  */
-#ifdef PRINT_PROMPT
 #define FRESH_CMD(_argv, _argc, _line, _history, _history_count, _prompt,      \
                   _pwd, _pipe_ptr, _pipe_argv, _pipe_argc) {                   \
     _argc = 0;                                                                 \
@@ -63,29 +71,9 @@
     getcwd(_pwd, PWD_LEN);                                                     \
     strcpy(_prompt, PROMPT);                                                   \
     strcat(_prompt, _pwd);                                                     \
-    strcat(_prompt, PROMPT_SUF);                                               \
-    printf("%s", _prompt);                                                     \
+    PRINTP("%s", _prompt);                                                     \
     fflush(stdout);                                                            \
 }
-#else
-#define FRESH_CMD(_argv, _argc, _line, _history, _history_count, _prompt,      \
-                  _pwd, _pipe_ptr, _pipe_argv, _pipe_argc) {                   \
-    _argc = 0;                                                                 \
-    _pipe_argc = 0;                                                            \
-    _pipe_ptr = NULL;                                                          \
-    memset(_line, '\0', sizeof(char) * INPUT_LEN);                             \
-    memset(_pwd, '\0', sizeof(char) * PWD_LEN);                                \
-    memset(_pipe_argv, 0, sizeof(char *) * ARGS_LEN);                          \
-    memset(_argv, 0, sizeof(char *) * ARGS_LEN);                               \
-    memset(_history[_history_count], '\0', sizeof(char) * INPUT_LEN);          \
-    memset(_prompt, '\0', sizeof(char) * PROMPT_LEN);                          \
-    getcwd(_pwd, PWD_LEN);                                                     \
-    strcpy(_prompt, PROMPT);                                                   \
-    strcat(_prompt, _pwd);                                                     \
-    strcat(_prompt, PROMPT_SUF);                                               \
-    fflush(stdout);                                                            \
-}
-#endif
 
 /**
  * posix_signal
@@ -207,6 +195,24 @@
     _exit(EXIT_SUCCESS);                                                       \
 }
 
+#ifdef PRINT_RET
+#define WAIT(_pid, _stat, _msg) ({                                             \
+    int _rc = 0;                                                               \
+    waitpid(_pid, _stat, WUNTRACED);                                           \
+    if (!WIFEXITED(_pid)) {                                                    \
+        printf(_msg, WEXITSTATUS(_pid));                                       \
+        _rc = -1;                                                              \
+    }                                                                          \
+    _rc;                                                                       \
+})
+#else
+#define WAIT(_pid, _stat, _msg) ({                                             \
+    int _rc = 0;                                                               \
+    waitpid(_pid, _stat, WUNTRACED);                                           \
+    _rc;                                                                       \
+})
+#endif
+
 /**
  * argparse
  * parse command line arguments by ' '
@@ -250,7 +256,6 @@
  * @param argc, argv for left/right pipe, history
  * @return return code
  */
-#ifdef PRINT_RET
 #define SYSTEM(_argc, _argv, _sys_argc, _sys_argv,                             \
                _pipe_ptr, _pipe_argc, _pipe_argv,                              \
                _curr_history, _num_history) ({                                 \
@@ -286,13 +291,8 @@
             FILE *_fdpp = fdopen(_fdp[0], "r");                                \
             fscanf(_fdpp, "%d", &_gcpid);                                      \
             waitpid(_gcpid, &_gcstat, WUNTRACED);                              \
-            waitpid(_pipe_left, &_pipel_stat, WUNTRACED);                      \
-            if (!WIFEXITED(_gcstat))                                           \
-                printf(PIPEL_ERR, WEXITSTATUS(_gcstat));                       \
-            if (!WIFEXITED(_pipel_stat)) {                                     \
-                printf(PIPER_ERR, WEXITSTATUS(_pipel_stat));                   \
-                _rc = -1;                                                      \
-            }                                                                  \
+            WAIT(_gcpid, &_gcstat, PIPEL_ERR);                                 \
+            _rc = WAIT(_pipe_left, &_pipel_stat, PIPER_ERR);                   \
         }                                                                      \
     } else {                                                                   \
         int _child_pid, _child_status;                                         \
@@ -302,67 +302,11 @@
         } else if (_child_pid == 0) {                                          \
             EXEC(_argc, _argv, _curr_history, _num_history);                   \
         } else {                                                               \
-            waitpid(_child_pid, &_child_status, WUNTRACED);                    \
-            if (!WIFEXITED(_child_status)) {                                   \
-                printf(CHILD_ERR, WEXITSTATUS(_child_status));                 \
-                _rc = -1;                                                      \
-            }                                                                  \
+            _rc = WAIT(_child_pid, &_child_status, CHILD_ERR);                 \
         }                                                                      \
     }                                                                          \
     _rc;                                                                       \
 })
-#else
-#define SYSTEM(_argc, _argv, _sys_argc, _sys_argv,                             \
-               _pipe_ptr, _pipe_argc, _pipe_argv,                              \
-               _curr_history, _num_history) ({                                 \
-    int _rc = 0;                                                               \
-    if (_sys_argc > 1 && _pipe_ptr != NULL) {                                  \
-        int _pipe_left, _pipel_stat, _fdp[2];                                  \
-        pipe(_fdp);                                                            \
-        _pipe_left = fork();                                                   \
-        if (_pipe_left < 0) {                                                  \
-            _rc = -1;                                                          \
-        } else if (_pipe_left == 0) {                                          \
-            int _pipe_right, _pipe_stat, _fd;                                  \
-            _pipe_right = fork();                                              \
-            if (_pipe_right < 0) {                                             \
-                _rc = -1;                                                      \
-            } else if (_pipe_right == 0) {                                     \
-                _fd = open(_sys_argv[1], O_RDONLY);                            \
-                dup2(_fd, fileno(stdin));                                      \
-                EXEC(_pipe_argc, _pipe_argv,                                   \
-                           _curr_history, _num_history);                       \
-            } else {                                                           \
-                close(_fdp[0]);                                                \
-                FILE *_fdpp = fdopen(_fdp[1], "w");                            \
-                fprintf(_fdpp, "%d", _pipe_right);                             \
-                fflush(_fdpp);                                                 \
-                _fd = open(_sys_argv[1], O_WRONLY);                            \
-                dup2(_fd, fileno(stdout));                                     \
-                EXEC(_argc, _argv, _curr_history, _num_history);               \
-            }                                                                  \
-        } else {                                                               \
-            int _gcpid, _gcstat;                                               \
-            close(_fdp[1]);                                                    \
-            FILE *_fdpp = fdopen(_fdp[0], "r");                                \
-            fscanf(_fdpp, "%d", &_gcpid);                                      \
-            waitpid(_gcpid, &_gcstat, WUNTRACED);                              \
-            waitpid(_pipe_left, &_pipel_stat, WUNTRACED);                      \
-        }                                                                      \
-    } else {                                                                   \
-        int _child_pid, _child_status;                                         \
-        _child_pid = fork();                                                   \
-        if (_child_pid < 0) {                                                  \
-            _rc = -1;                                                          \
-        } else if (_child_pid == 0) {                                          \
-            EXEC(_argc, _argv, _curr_history, _num_history);                   \
-        } else {                                                               \
-            waitpid(_child_pid, &_child_status, WUNTRACED);                    \
-        }                                                                      \
-    }                                                                          \
-    _rc;                                                                       \
-})
-#endif
 
 sigjmp_buf keep_running;
 int curr_history = 0;
