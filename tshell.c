@@ -241,11 +241,11 @@
  * For Pipe
  *    -----------------------<-------------------------<------------------
  *    |                                                                  |
- * Parent---fork()-----------------scanf()----------------------wait()--->
- *            |[use scanf's blocking]| pipe(): granchild PID      |
- *            ------>fork()-------printf()-->exec()--//->exit()   |
- *                     |                                          |
- *                     --------------------->exec()--//-->exit()---
+ * Parent---fork()-----------------scanf()------------------------wait()->
+ *            |[use scanf's blocking]| pipe(): granchild PID        |
+ *            ------>fork()-------printf()--->exec()--//-->exit()   |
+ *                     |                   | fifo()                 |
+ *                     ---------------------->exec()--//-->exit()--->
  * Child status could be collected by parent
  * @param argc, argv for left/right pipe, history
  * @return return code
@@ -419,17 +419,17 @@ int main(int argc, char *argv[]) {
         if (CATCH_COMMAND(ts_argv[0], "exit"))
             exit(EXIT_SUCCESS);
         else if (CATCH_COMMAND(ts_argv[0], "chdir") ||
-                   CATCH_COMMAND(ts_argv[0], "cd"))
+                 CATCH_COMMAND(ts_argv[0], "cd"))
             rc = CHDIR(ts_argc, ts_argv);
         else if (argc > 1 && pipe_ptr != NULL && 
-                   CATCH_COMMAND(pipe_argv[0], "chdir")) 
+                 CATCH_COMMAND(pipe_argv[0], "chdir")) 
             rc = CHDIR(pipe_argc, pipe_argv);
         else if (CATCH_COMMAND(ts_argv[0], "limit")) 
             rc = LIMIT(ts_argc, ts_argv);
         else if (argc > 1 && pipe_ptr != NULL && 
-                   CATCH_COMMAND(pipe_argv[0], "limit"))
+                 CATCH_COMMAND(pipe_argv[0], "limit"))
             rc = LIMIT(pipe_argc, pipe_argv);
-	    else 
+        else 
             rc = SYSTEM(ts_argc, ts_argv, argc, argv, 
                         pipe_ptr, pipe_argc, pipe_argv, 
                         curr_history, num_history);
