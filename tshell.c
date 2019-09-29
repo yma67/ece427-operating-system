@@ -338,11 +338,11 @@
 })
 
 sigjmp_buf keep_running;
+volatile sig_atomic_t has_child = FALSE;
 int curr_history = 0;
 int num_history = 0;
 int ts_argc = 0;
 int pipe_argc = 0;
-int has_child = FALSE;
 char pwd[PWD_LEN];
 char history[HISTORY_LIMIT][INPUT_LEN];
 char line[INPUT_LEN];
