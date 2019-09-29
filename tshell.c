@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <setjmp.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/resource.h>
 
@@ -18,10 +19,11 @@
 #define TRUE            1
 #define FALSE           0
 #define INPUT_LEN       201
-#define HISTORY_LIMIT   3
+#define HISTORY_LIMIT   100
 #define ARGS_LEN        30
 #define PWD_LEN         80
 #define PROMPT_LEN      500
+#define PATH_MAX        4096
 #define TOKEN           " \n"
 #define PROMPT          "\033[1;32mott-ads-148\033[0m:\033[1;34m"
 #define PROMPT_SUF      "\033[0m > "
@@ -81,6 +83,26 @@
     strcat(_prompt, PROMPT_SUF);                                               \
     PRINTP("%s", _prompt);                                                     \
     fflush(stdout);                                                            \
+}
+
+/**
+ * handle_pipe 
+ * Handle case which pipe is not provided or is not a valid fifo
+ * @param argc, argv
+ */
+#define HANDLE_PIPE(_argc, _argv) {                                            \
+    if (_argc > 1) {                                                           \
+        char buf[PATH_MAX];                                                    \
+        struct stat st_buf;                                                    \
+        memset(buf, 0, sizeof(char) * PATH_MAX);                               \
+        realpath(_argv[1], buf);                                               \
+        _argv[1] = buf;                                                        \
+        int rco = stat(_argv[1], &st_buf);                                     \
+        if (rco == -1 || !S_ISFIFO(st_buf.st_mode)) {                          \
+            _argc -= 1;                                                        \
+            _argv[1] = NULL;                                                   \
+        }                                                                      \
+    }                                                                          \
 }
 
 /**
@@ -147,9 +169,9 @@
  * @return return code
  */
 #define CHDIR(_argc, _argv) ({                                                 \
-    int _rc = 0;                                                               \
-    if (_argc > 1) _rc = chdir(_argv[1]);                                      \
-    else fprintf(stdout, CHDIR_ERR);                                           \
+    int _rc = -1;                                                              \
+    if (_argc > 1 && _argv[1][0] != '~') _rc = chdir(_argv[1]);                \
+    else _rc = chdir(getenv("HOME"));                                          \
     _rc;                                                                       \
 })
 
@@ -346,6 +368,7 @@ void sigtstp_handler(int sig) {
 }
 
 int main(int argc, char *argv[]) {
+    HANDLE_PIPE(argc, argv);
     POSIX_SIGNAL(sigint_handler, sigtstp_handler);
     FRESH_CMD(ts_argv, ts_argc, line, history, curr_history, 
               prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
