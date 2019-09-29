@@ -12,9 +12,9 @@
 #include <sys/resource.h>
 
 // Specify whether print prompt or error code at compile time!
-// gcc tshell.c -o -DPRINT_PROMPT=1 to enable print of prompt
-// gcc tshell.c -o -DPRINT_RET=1 to enable error code printing
-// gcc tshell.c -o -DPRINT_PROMPT=1 -DPRINT_RET=1 to enable both
+// gcc tshell.c -o shell -DPRINT_PROMPT=1 to enable print of prompt
+// gcc tshell.c -o shell -DPRINT_RET=1 to enable error code printing
+// gcc tshell.c -o shell -DPRINT_PROMPT=1 -DPRINT_RET=1 to enable both
 
 #define TRUE            1
 #define FALSE           0
@@ -364,6 +364,7 @@ void sigint_handler(int sig) {
 }
 
 void sigtstp_handler(int sig) {
+    has_child = FALSE;
     siglongjmp(keep_running, 1);
 }
 
