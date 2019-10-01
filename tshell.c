@@ -43,6 +43,7 @@
 
 #define GET_IPAST(_i, _chist) (_chist - _i + HISTORY_LIMIT) % HISTORY_LIMIT
 #define CATCH_COMMAND(_line, _cmd) !strncmp(_line, _cmd, strlen(_cmd))
+#define min(_a, _b) (_a < _b) ? (_a) : (_b)
 
 /**
  * printp 
@@ -129,9 +130,10 @@
  */
 #define INSERT_HISTORY(_hist, _chist, _num_hist, _line) {                      \
     strcpy(_hist[_chist], _line);                                              \
-    _hist[_chist][strlen(_line) - 1] = '\0';                                   \
+    if (_hist[_chist][strlen(_line) - 1] == '\n')                              \
+        _hist[_chist][strlen(_line) - 1] = '\0';                               \
     _chist = (_chist + 1) % HISTORY_LIMIT;                                     \
-    _num_hist += 1;                                                            \
+    _num_hist = min(HISTORY_LIMIT, _num_hist + 1);                             \
 }
 
 /**
@@ -140,9 +142,10 @@
  * @param current history, number history
  * @return void
  */
-#define PRINT_HISTORY(_chist, _num_hist) {                                     \
-    for (int i = 1; i < HISTORY_LIMIT + 1 && i < _num_hist + 1; i++)           \
-        fprintf(stdout, "%d\t%s\n", i, history[GET_IPAST(i, _chist)]);         \
+#define PRINT_HISTORY(_chist, _nhist) {                                        \
+    for (int i = _nhist; i > 0; i--)                                           \
+        fprintf(stdout, "%d\t%s\n", _nhist - i + 1,                            \
+                history[GET_IPAST(i, _chist)]);                                \
 }
 
 /**
@@ -187,9 +190,9 @@
     if (_argc > 1 && IS_NUMBER(_argv[1])) {                                    \
         struct rlimit _lim;                                                    \
         memset(&_lim, 0, sizeof(struct rlimit));                               \
-        getrlimit(RLIMIT_AS, &_lim);                                           \
+        getrlimit(RLIMIT_DATA, &_lim);                                         \
         _lim.rlim_cur = atoi(_argv[1]);                                        \
-        _rc = setrlimit(RLIMIT_AS, &_lim);                                     \
+        _rc = setrlimit(RLIMIT_DATA, &_lim);                                   \
     }                                                                          \
     _rc;                                                                       \
 })
@@ -378,9 +381,9 @@ int main(int argc, char *argv[]) {
                   prompt, pwd, pipe_ptr, pipe_argv, pipe_argc);
     // if get_a_line() not encounter EOF
     while (fgets(line, PROMPT_LEN, stdin)) {
-        // if len < 1 then exit()
-        if (!strncmp(line, "\n", 1)) 
-            exit(EXIT_SUCCESS);
+        // if len < 2 then continue
+        if (strlen(line) < 2) 
+            continue;
         INSERT_HISTORY(history, curr_history, num_history, line);
         DETECT_PIPE(line, pipe_ptr);
         if (pipe_ptr != NULL && argc < 2)
