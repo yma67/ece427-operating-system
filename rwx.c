@@ -27,6 +27,12 @@
     uint32_t usecs = (rand() % 100) * 1000;                                   \
     usleep(usecs);                                                            \
 }
+#define update_metric(_wtime, _rw) {                                          \
+    time_count_##_rw += _wtime;                                               \
+    time_max_##_rw = max(time_max_##_rw, _wtime);                             \
+    time_min_##_rw = min(time_min_##_rw, _wtime);                             \
+    access_count_##_rw += 1;                                                  \
+}
 
 // Metrics
 static long counter = 0;
@@ -66,10 +72,7 @@ static void* writer(void *niter) {
         // Update metrics
         clock_t end = clock();
         double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC) * 1000;
-        time_count_write += wait_time;
-        time_max_write = max(time_max_write, wait_time);
-        time_min_write = min(time_min_write, wait_time);
-        access_count_write += 1;
+        update_metric(wait_time, write);
         sleepr;
         // Write
         counter += 10;
@@ -108,15 +111,12 @@ static void* reader(void *niter) {
         // Update metrics
         clock_t end = clock();
         double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC) * 1000;
-        time_count_read += wait_time;
-        time_max_read = max(time_max_read, wait_time);
-        time_min_read = min(time_min_read, wait_time);
-        access_count_read += 1;
+        update_metric(wait_time, read);
+        sleepr;
         // Read
 #ifdef PNUM
         printf("count at this read is %ld\n", counter);
 #endif
-        sleepr;
         // Critical section END
         if (sem_wait(&mutex) == -1)
             exit(2);
