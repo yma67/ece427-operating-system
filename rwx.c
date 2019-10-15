@@ -21,12 +21,14 @@
  */
 #define RNUMS 500
 #define WNUMS 10
+
 #define min(_a, _b) (_a < _b) ? (_a) : (_b)
 #define max(_a, _b) (_a < _b) ? (_b) : (_a)
-#define sleepr {                                                              \
-    uint32_t usecs = (rand() % 100) * 1000;                                   \
-    usleep(usecs);                                                            \
-}
+
+#define sleepr usleep((uint32_t)((rand() % 100) * 1000))
+#define wait(_sem) if (sem_wait(&_sem) == -1) exit(2);
+#define post(_sem) if (sem_post(&_sem) == -1) exit(2);
+
 #define update_metric(_wtime, _rw) {                                          \
     time_count_##_rw += _wtime;                                               \
     time_max_##_rw = max(time_max_##_rw, _wtime);                             \
@@ -35,7 +37,6 @@
 }
 
 // Metrics
-static long counter = 0;
 static double time_count_read = 0.0;
 static double time_min_read = DBL_MAX;
 static double time_max_read = 0.0;
@@ -45,12 +46,15 @@ static double time_min_write = DBL_MAX;
 static double time_max_write = 0.0;
 static long access_count_write = 0;
 
-// Synchronization Variables
+// Semaphore Variables
 #ifdef EQUAL
 static sem_t queue_mutex;
 #endif 
 static sem_t rw_mutex, mutex;
 static int read_count;
+
+// Atomic Variable
+static long counter = 0;
 
 int isnumber(const char*s) {
     char* e = NULL;
@@ -63,11 +67,10 @@ static void* writer(void *niter) {
     do {
         clock_t begin = clock();
 #ifdef EQUAL
-        if (sem_wait(&queue_mutex) == -1)
-            exit(2);
+        wait(queue_mutex);
 #endif 
-        if (sem_wait(&rw_mutex) == -1)
-            exit(2);
+        wait(rw_mutex);
+        
         // Critical section START
         // Update metrics
         clock_t end = clock();
@@ -77,11 +80,10 @@ static void* writer(void *niter) {
         // Write
         counter += 10;
         // Critical section END
-        if (sem_post(&rw_mutex) == -1)
-            exit(2);
+
+        post(rw_mutex);        
 #ifdef EQUAL
-        if (sem_post(&queue_mutex) == -1)
-            exit(2);
+        post(queue_mutex);
 #endif 
     } while ((++local_count) < *(int *)niter);
     return NULL;
@@ -92,21 +94,17 @@ static void* reader(void *niter) {
     do {
         clock_t begin = clock();
 #ifdef EQUAL
-        if (sem_wait(&queue_mutex) == -1)
-            exit(2);
+        wait(queue_mutex);
 #endif 
-        if (sem_wait(&mutex) == -1)
-            exit(2);
+        wait(mutex);
         read_count += 1;
         if (read_count == 1)
-            if (sem_wait(&rw_mutex) == -1)
-                exit(2);
-        if (sem_post(&mutex) == -1)
-            exit(2);
+            wait(rw_mutex);
+        post(mutex);
 #ifdef EQUAL
-        if (sem_post(&queue_mutex) == -1)
-            exit(2);
+        post(queue_mutex);
 #endif 
+        
         // Critical section START
         // Update metrics
         clock_t end = clock();
@@ -118,14 +116,11 @@ static void* reader(void *niter) {
         printf("count at this read is %ld\n", counter);
 #endif
         // Critical section END
-        if (sem_wait(&mutex) == -1)
-            exit(2);
+        wait(mutex);
         read_count -= 1;
         if (read_count == 0)
-            if (sem_post(&rw_mutex) == -1)
-                exit(2); 
-        if (sem_post(&mutex) == -1)
-            exit(2);
+            post(rw_mutex);
+        post(mutex);
     } while ((++local_count) < *(int *)niter);   
     return NULL;
 }
