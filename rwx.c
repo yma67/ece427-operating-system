@@ -110,7 +110,7 @@ static void* reader(void *niter) {
 #ifdef EQUAL
         post(queue_mutex);
 #endif 
-////////////////////////////// Critical section START ////////////////////////////
+////////////////////////////// Critical section START /////////////////////////
         // update metrics
         clock_t end = clock();
         double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC) 
@@ -121,7 +121,7 @@ static void* reader(void *niter) {
 #ifdef PNUM
         printf("count at this read is %ld\n", counter);
 #endif
-////////////////////////////// Critical section END  ////////////////////////////
+////////////////////////////// Critical section END  //////////////////////////
         wait(mutex);
         read_count -= 1;
         if (read_count == 0)
@@ -146,10 +146,10 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     time_t t;
-    srand((unsigned)time(&t));
-    read_count = 0;
     int niter = atoi(argv[1]);
     int nitew = atoi(argv[2]);
+    srand((unsigned)time(&t));
+    read_count = 0;
     pthread_t readers[RNUMS], writers[WNUMS];
     memset(readers, 0, RNUMS * sizeof(pthread_t));
     memset(writers, 0, WNUMS * sizeof(pthread_t));
