@@ -71,7 +71,7 @@ static void* writer(void *niter) {
         time_min_write = min(time_min_write, wait_time);
         access_count_write += 1;
         sleepr;
-	    // Write
+        // Write
         counter += 10;
         // Critical section END
         if (sem_post(&rw_mutex) == -1)
@@ -116,9 +116,9 @@ static void* reader(void *niter) {
 #ifdef PNUM
         printf("count at this read is %ld\n", counter);
 #endif
-	    sleepr;
+        sleepr;
         // Critical section END
-	    if (sem_wait(&mutex) == -1)
+        if (sem_wait(&mutex) == -1)
             exit(2);
         read_count -= 1;
         if (read_count == 0)
