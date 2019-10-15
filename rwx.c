@@ -10,12 +10,12 @@
 #include <pthread.h>
 
 /**
- * Compiling Guide
- * To show starvation, compile with 
+ * compiling guide
+ * to show starvation, compile with 
  * gcc [this_filename].c -lpthread
- * To show solve of starvation, compile with
+ * to show solve of starvation, compile with
  * gcc [this_filename].c -lpthread -DEQUAL
- * To show values in variables, append
+ * to show values in variables, append
  * -DPNUM
  * to any of the above commands
  */
@@ -36,7 +36,7 @@
     access_count_##_rw += 1;                                                  \
 }
 
-// Metrics
+// metrics (ms)
 static double time_count_read = 0.0;
 static double time_min_read = DBL_MAX;
 static double time_max_read = 0.0;
@@ -46,14 +46,14 @@ static double time_min_write = DBL_MAX;
 static double time_max_write = 0.0;
 static long access_count_write = 0;
 
-// Semaphore Variables
+// semaphore variables
 #ifdef EQUAL
 static sem_t queue_mutex;
 #endif 
 static sem_t rw_mutex, mutex;
 static int read_count;
 
-// Atomic Variable
+// atomic variable
 static long counter = 0;
 
 int isnumber(const char*s) {
@@ -70,17 +70,16 @@ static void* writer(void *niter) {
         wait(queue_mutex);
 #endif 
         wait(rw_mutex);
-        
-        // Critical section START
-        // Update metrics
+////////////////////////////// critical section START /////////////////////////
+        // update metrics
         clock_t end = clock();
-        double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC) * 1000;
+        double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC) 
+                           * 1000;
         update_metric(wait_time, write);
         sleepr;
-        // Write
+        // write
         counter += 10;
-        // Critical section END
-
+////////////////////////////// critical section END  //////////////////////////
         post(rw_mutex);        
 #ifdef EQUAL
         post(queue_mutex);
@@ -104,18 +103,18 @@ static void* reader(void *niter) {
 #ifdef EQUAL
         post(queue_mutex);
 #endif 
-        
-        // Critical section START
-        // Update metrics
+////////////////////////////// Critical section START ////////////////////////////
+        // update metrics
         clock_t end = clock();
-        double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC) * 1000;
+        double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC) 
+                           * 1000;
         update_metric(wait_time, read);
         sleepr;
-        // Read
+        // read
 #ifdef PNUM
         printf("count at this read is %ld\n", counter);
 #endif
-        // Critical section END
+////////////////////////////// Critical section END  ////////////////////////////
         wait(mutex);
         read_count -= 1;
         if (read_count == 0)
