@@ -177,8 +177,13 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
     }
-    printf("=============[SUMMARY]============\n");
-    printf("[READER]>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+
+#ifdef EQUAL 
+    printf("==============[Fair]==============\n");
+#else
+    printf("========[Reader Preference]=======\n");
+#endif 
+    printf("[Reader]>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
     printf("[Max wait] %f ms\n", time_max_read);
     printf("[Min wait] %f ms\n", time_min_read);
     printf("[Avg wait] %f ms\n", (time_count_read / access_count_read));
