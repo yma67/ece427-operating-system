@@ -43,7 +43,7 @@ gcc [this_filename].c -o rwsim -lpthread -DEQUAL
 - to show values in variables, append ```-DPNUM``` to any of the above commands
 ##### execute
 ```bash
-./rwsim 60 30
+./rwsim NUM_TRAILS_WRITER NUM_TRAILS_READER
 ```
 ##### With Reader Preference (Starvation Observed)
 ```bash
