@@ -1,5 +1,5 @@
-### ece427-operating-system
-###### Made available under ```the Wang Licence```
+### ECE427 Operating System
+###### Made available under ```the Wang Licence (3-Clause BSD)```
 
 #### Assignment 2 Test Report
 #### With Reader Preference (Starvation Observed)
