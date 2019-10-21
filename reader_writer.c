@@ -1,6 +1,6 @@
 /**
  * ECSE 427 Operating System
- * Programming Assignment 2: Readers-Writers Problem
+ * Readers-Writers Problem
  * Author: Yuxiang Ma
  *
  * compile
