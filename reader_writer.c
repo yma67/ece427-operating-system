@@ -80,8 +80,7 @@ static void* writer(void *niter) {
 ////////////////////////////// critical section START /////////////////////////
         // update metrics
         clock_t end = clock();
-        double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC) 
-                           * 1000;
+        double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC); 
         update_metric(wait_time, write);
         sleepr;
         // write
@@ -113,8 +112,7 @@ static void* reader(void *niter) {
 ////////////////////////////// Critical section START /////////////////////////
         // update metrics
         clock_t end = clock();
-        double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC) 
-                           * 1000;
+        double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC);
         update_metric(wait_time, read);
         sleepr;
         // read
