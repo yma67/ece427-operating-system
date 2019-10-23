@@ -1,20 +1,3 @@
-/**
- * ECSE 427 Operating System
- * Readers-Writers Problem
- * Author: Yuxiang Ma
- *
- * compile
- * - to show starvation, compile with 
- *   gcc [this_filename].c -o rwsol -lpthread
- * - to show solve of starvation, compile with
- *   gcc [this_filename].c -o rwsol -lpthread -DEQUAL
- * - to show values in variables, append
- *   -DPNUM
- *   to any of the above commands
- * 
- * execute
- *   ./rwsol 60 30
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
