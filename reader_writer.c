@@ -23,8 +23,7 @@
     time_count_##_rw += _wtime;                                               \
     time_max_##_rw = max(time_max_##_rw, _wtime);                             \
     time_min_##_rw = min(time_min_##_rw, _wtime);                             \
-    if (strcmp(#_rw, "read"))                                                 \
-        access_count_##_rw += 1;                                              \
+    access_count_##_rw += 1;                                                  \
 }
 
 // metrics (ms)
@@ -85,7 +84,6 @@ static void* reader(void *niter) {
 #endif 
         wait(mutex);
         read_count += 1;
-        access_count_read += 1;
         if (read_count == 1)
             wait(rw_mutex);
         post(mutex);
@@ -95,7 +93,6 @@ static void* reader(void *niter) {
         // update metrics
         clock_t end = clock();
         double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC);
-        update_metric(wait_time, read);
         sleepr;
         // read
 #ifdef PNUM
@@ -103,6 +100,7 @@ static void* reader(void *niter) {
 #endif
         wait(mutex);
         read_count -= 1;
+        update_metric(wait_time, read);
         if (read_count == 0)
             post(rw_mutex);
         post(mutex);
