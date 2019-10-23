@@ -78,7 +78,6 @@ static void* writer(void *niter) {
         wait(queue_mutex);
 #endif 
         wait(rw_mutex);
-////////////////////////////// critical section START /////////////////////////
         // update metrics
         clock_t end = clock();
         double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC); 
@@ -86,7 +85,6 @@ static void* writer(void *niter) {
         sleepr;
         // write
         counter += 10;
-////////////////////////////// critical section END  //////////////////////////
         post(rw_mutex);        
 #ifdef EQUAL
         post(queue_mutex);
@@ -111,7 +109,6 @@ static void* reader(void *niter) {
 #ifdef EQUAL
         post(queue_mutex);
 #endif 
-////////////////////////////// Critical section START /////////////////////////
         // update metrics
         clock_t end = clock();
         double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC);
@@ -121,7 +118,6 @@ static void* reader(void *niter) {
 #ifdef PNUM
         printf("count at this read is %ld\n", counter);
 #endif
-////////////////////////////// Critical section END  //////////////////////////
         wait(mutex);
         read_count -= 1;
         if (read_count == 0)
