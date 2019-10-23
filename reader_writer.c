@@ -40,7 +40,8 @@
     time_count_##_rw += _wtime;                                               \
     time_max_##_rw = max(time_max_##_rw, _wtime);                             \
     time_min_##_rw = min(time_min_##_rw, _wtime);                             \
-    access_count_##_rw += 1;                                                  \
+    if (strcmp(#_rw, "read"))                                                 \
+        access_count_##_rw += 1;                                              \
 }
 
 // metrics (ms)
@@ -103,6 +104,7 @@ static void* reader(void *niter) {
 #endif 
         wait(mutex);
         read_count += 1;
+        access_count_read += 1;
         if (read_count == 1)
             wait(rw_mutex);
         post(mutex);
@@ -185,9 +187,11 @@ int main(int argc, char *argv[]) {
     printf("[Max wait] %f ms\n", time_max_read);
     printf("[Min wait] %f ms\n", time_min_read);
     printf("[Avg wait] %f ms\n", (time_count_read / access_count_read));
+    printf("[Count]    %ld  \n", access_count_read);
     printf("[Writer]>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
     printf("[Max wait] %f ms\n", time_max_write);
     printf("[Min wait] %f ms\n", time_min_write);
     printf("[Avg wait] %f ms\n", (time_count_write / access_count_write));
+    printf("[Count]    %ld  \n", access_count_write);
     return EXIT_SUCCESS;
 }
