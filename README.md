@@ -50,26 +50,30 @@ gcc [this_filename].c -o rwsim -lpthread -DEQUAL
 yma67@teaching:~/ws/ece427/a2$ gcc A2Q1.c -o a2q1 -lpthread
 yma67@teaching:~/ws/ece427/a2$ ./a2q1 30 60
 ========[Reader Preference]=======
-[Reader]>>>>>>>>>>>>>>>>>>>>>>>>>>
+[Reader]--------------------------
 [Max wait] 12.000000 ms
 [Min wait] 0.000000 ms
 [Avg wait] 0.010708 ms
-[Writer]>>>>>>>>>>>>>>>>>>>>>>>>>>
+[Count]    30000
+[Writer]--------------------------
 [Max wait] 3291.000000 ms
 [Min wait] 0.000000 ms
 [Avg wait] 109.443333 ms
+[Count]    300
 ```
 ##### With Reader-Writer Fair (Almost No Starvation Observed)
 ``` bash
 yma67@teaching:~/ws/ece427/a2$ gcc A2Q3.c -o a2q3 -lpthread
 yma67@teaching:~/ws/ece427/a2$ ./a2q3 30 60
 ==============[Fair]==============
-[Reader]>>>>>>>>>>>>>>>>>>>>>>>>>>
+[Reader]--------------------------
 [Max wait] 521.000000 ms
 [Min wait] 0.000000 ms
 [Avg wait] 5.173833 ms
-[Writer]>>>>>>>>>>>>>>>>>>>>>>>>>>
+[Count]    30000
+[Writer]--------------------------
 [Max wait] 485.000000 ms
 [Min wait] 0.000000 ms
 [Avg wait] 7.930000 ms
+[Count]    300
 ```
