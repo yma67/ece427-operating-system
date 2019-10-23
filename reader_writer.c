@@ -144,8 +144,8 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     time_t t;
-    int niter = atoi(argv[1]);
-    int nitew = atoi(argv[2]);
+    int niter = atoi(argv[2]);
+    int nitew = atoi(argv[1]);
     srand((unsigned)time(&t));
     read_count = 0;
     pthread_t readers[RNUMS], writers[WNUMS];
