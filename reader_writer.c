@@ -179,12 +179,12 @@ int main(int argc, char *argv[]) {
 #else
     printf("========[Reader Preference]=======\n");
 #endif 
-    printf("[Reader]>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+    printf("[Reader]--------------------------\n");
     printf("[Max wait] %f ms\n", time_max_read);
     printf("[Min wait] %f ms\n", time_min_read);
     printf("[Avg wait] %f ms\n", (time_count_read / access_count_read));
     printf("[Count]    %ld  \n", access_count_read);
-    printf("[Writer]>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+    printf("[Writer]--------------------------\n");
     printf("[Max wait] %f ms\n", time_max_write);
     printf("[Min wait] %f ms\n", time_min_write);
     printf("[Avg wait] %f ms\n", (time_count_write / access_count_write));
