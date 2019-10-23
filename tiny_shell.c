@@ -11,11 +11,6 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 
-// Specify whether print prompt or error code at compile time!
-// gcc tshell.c -o shell -DPRINT_PROMPT=1 to enable print of prompt
-// gcc tshell.c -o shell -DPRINT_RET=1 to enable error code printing
-// gcc tshell.c -o shell -DPRINT_PROMPT=1 -DPRINT_RET=1 to enable both
-
 #define TRUE            1
 #define FALSE           0
 #define INPUT_LEN       201
