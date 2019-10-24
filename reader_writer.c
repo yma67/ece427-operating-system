@@ -109,7 +109,7 @@ static void* reader(void *niter) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 3 || !isnumber(argv[1])) {
+    if (argc < 3 || !isnumber(argv[1]) || !isnumber(argv[2])) {
         printf("please specify niter\n");
         exit(EXIT_FAILURE);
     }
