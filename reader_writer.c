@@ -62,7 +62,7 @@ static void* writer(void *niter) {
         wait(rw_mutex);
         // update metrics
         clock_t end = clock();
-        double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC); 
+        double wait_time = ((double)(end - begin) * 1000 / CLOCKS_PER_SEC); 
         update_metric(wait_time, write);
         sleepr;
         // write
@@ -92,7 +92,7 @@ static void* reader(void *niter) {
 #endif 
         // update metrics
         clock_t end = clock();
-        double wait_time = (double)((end - begin) * 1000 / CLOCKS_PER_SEC);
+        double wait_time = ((double)(end - begin) * 1000 / CLOCKS_PER_SEC);
         sleepr;
         // read
 #ifdef PNUM
