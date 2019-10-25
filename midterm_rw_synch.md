@@ -28,10 +28,10 @@ When two or more processes are reading or writing, some shared data and final re
 ### 1.1.4 Critical Section 临界区 (重要)
 #### 定义
 Part of the program that accesses shared data. If we arrange the processes runs such that no two processes are in their critical sections at the same time, race conditions can be avoided. 
-#### 四个性质 (非常重要)
-##### 互斥
+#### 1.1.4.1 四个性质 (非常重要)
+##### 1.1.4.1a 互斥 (Mahesh, Bilibili)
 同一时间临界区最多存在一个线程
-###### 反例 (Mahesh, Bilibili)
+###### 反例 
 ```cpp
 // flag[k]: proc k entered critical section
 bool flag[2] = {false, false};
@@ -52,13 +52,13 @@ flag[0] = true;
 flag[0] = false;
 // Post 1
 ```
-##### No. of CPUs, Execution Speed (Mahesh)
+##### 1.1.4.1b No. of CPUs, Execution Speed (Mahesh)
 No assumptions be made about speeds or number of CPUs. 
-##### Progress (Mahesh, Bilibili)
+##### 1.1.4.1c Progress (Mahesh, Bilibili)
 如果一个线程想要进入临界区，那么他最终会成功
 换句话说, **No process should have to wait forever to enter its critical section**
-##### 有限等待 (Mahesh, Bilibili)
+##### 1.1.4.1d 有限等待 (Mahesh, Bilibili)
 如果一个线程ti处于入口区，那么在ti的请求被接受前，其他线程进入临界区的时间是有限制的
 换句话说, **No process running outside its critical section may block other processes**
-##### 无忙等待 (可选) (Bilibili)
+##### 1.1.4.1e 无忙等待 (可选) (Bilibili)
 如果一个线程在等待进入临界区，那么在他可以进入之前会被挂起
