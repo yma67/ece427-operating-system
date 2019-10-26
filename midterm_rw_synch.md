@@ -92,6 +92,7 @@ flag[1] = false;
 </pre>
 </td>
 </tr>
+</table>
 - 进程0执行完flag[0] = true，调度
 - 进程1执行完flag[1] = true
 - 死锁
@@ -135,6 +136,7 @@ flag[1] = false;
 </pre>
 </td>
 </tr>
+</table>
 - 当且仅当sleep(random())相等的时候才会出现卡死
 ##### 1.1.4.1d 有限等待 (Mahesh, Bilibili)
 如果一个线程ti处于入口区，那么在ti的请求被接受前，其他线程进入临界区的时间是有限制的 <br>
@@ -169,6 +171,7 @@ turn = 0;
 </pre>
 </td>
 </tr>
+</table>
 反证法 <br>
 - 假设进程1进入临界区，完成后turn = 0
 - 如果进程0是朱哥设计的，也就是进程0暂时不做为，进程1再次想要进入临界区那是不可能的
@@ -205,3 +208,4 @@ flags[1] = false;
 </pre>
 </td>
 </tr>
+</table>
