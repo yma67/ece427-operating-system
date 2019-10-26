@@ -5,8 +5,8 @@
 struct semaphore {
     int count;
     vector<process> queue;
-    void semaphore::wait();
-    void semaphore::post();
+    void wait();
+    void post();
 }
 
 // uninterruptabla
