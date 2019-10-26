@@ -1,5 +1,5 @@
 ### ECE427 Operating System
-###### Made available under ```the Wang Licence (3-Clause BSD)```
+###### Made available under ```the Wang Licence (GPL)```
 
 #### Tiny Shell
 ##### Compile and execute
