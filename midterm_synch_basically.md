@@ -148,7 +148,7 @@ turn = 0;
 - QED
 #### 1.2.1e 无忙等待 (可选) (Bilibili)
 如果一个线程在等待进入临界区，那么在他可以进入之前会被挂起
-#### 1.2.2 软件解决方案: Peterson's Algorithm
+### 1.2.2 软件解决方案: Peterson's Algorithm
 ```cpp
 bool flags[2] = {false, false};
 int turn = 0;
@@ -170,7 +170,7 @@ flags[1] = false;
 - Busy wait
 - Dead lock
 - Priority Inversion Problem
-##### 1.2.3 硬件解决方案: 原子指令 Test and set
+### 1.2.3 硬件解决方案: 原子指令 Test and set
 Test and set指令不可中断
 ```asm
 test_and_set: 
