@@ -35,6 +35,8 @@ void semaphore::signal() {
     - Strict: FIFO
     - ???: Random wakeup
 ### 由管程实现
+```java
+```
 ## 管程
 ### 定义
 - A monitor is a high-level (programming language) abstraction that combines (and hides) the following
@@ -45,9 +47,9 @@ void semaphore::signal() {
 - A monitor ensures that only one process at a time can be active within the monitor. 
 - Monitors use condition variables to provide user-tailored synchronization and manage each with a separate queue for each condition. 
 - The only operations available on these variables are WAIT and SIGNAL
-    - wait suspends process that executes it until someone else does a signal (different from semaphore wait!)
-    - signal resumes one suspended process. no effect if nobody's waiting (different from semaphore free/signal)!
-### 例子
+    - wait suspends process that executes it until someone else does a signal (different from semaphore wait)
+    - signal resumes one suspended process. no effect if nobody's waiting (different from semaphore free/signal)
+### 示例
 ```java
 class Balance {
 
@@ -81,8 +83,21 @@ class Balance {
     }
 }
 ```
-### Extra 🙄
+### What's Happened? Version 1
+Process is entering Monitor
+- Case 1: No process inside monitor
+    - Incoming process enter monitor
+- Case 2: 1 or more process(es) inside monitor
+    - Incoming process goes to wait in **entry queue**
+Process is leaving Monitor
+- Process unlocks the monitor, so a process waiting in a entry queue can get into monitor
+### What's Happened? Version 2: Allow a process to wait inside condition variable
+- Process inside monitor wants to wait
+    - unlock the monitor
+    - signaling process to wake up a process that is sleeping on a conditional variable 
+    - signaling process needs to go to sleep immediately after signaling
+### 🙄 Extra 
 - Use ```UMPLE``` to generate
 - Use ```jUCMNav``` to model strategy
 - Apply Feature Modeling
-### 由信号量实现
+### 由信号量实现 (Hoare’s Monitor)
