@@ -19,7 +19,7 @@ void semaphore::wait() {
 }
 
 // uninterruptabla
-void semaphore::post() {
+void semaphore::signal() {
     this->count += 1;
     if (s.count >= 0) {
         auto proc = (this->queue).pop_back();
