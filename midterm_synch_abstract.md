@@ -34,8 +34,39 @@ void semaphore::signal() {
 - 2 Types
     - Strict: FIFO
     - ???: Random wakeup
-### 由管程实现
+### 由管程实现 (同示例)
 ```java
+public class Semaphore {
+
+    int semVar;
+    private final Lock lock = new ReentrantLock();
+    private final Condition queue = lock.newCondition();
+    
+    public Semaphore(int svar) {
+        this.semVar = svar;
+    }
+    
+    public void signal() throws InterruptedException {
+        lock.lock();
+        try {
+            this.semVar += 1;
+            positive.signal();
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    public void wait() throws InterruptedException {
+        lock.lock();
+        try {
+            while (this.semVar - 1 < 0)
+                positive.await();
+            this.semVar -= 1;
+        } finally {
+            lock.unlock();
+        }
+    }
+}
 ```
 ## 管程
 ### 定义
@@ -71,7 +102,7 @@ class Balance {
         }
     }
     
-    public bool withdraw(int val) throws InterruptedException {
+    public void withdraw(int val) throws InterruptedException {
         lock.lock();
         try {
             while (this.balance - val < 0)
