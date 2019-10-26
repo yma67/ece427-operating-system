@@ -1,4 +1,4 @@
-# 同步，同步机制，经典同步问题
+# 同步基础
 ###### Made available under ```the Wang Licence (3-BSD)```
 ## 1.1 几个概念
 ### 1.1.1 竞争
