@@ -1,5 +1,5 @@
 # 同步基础
-###### Made available under ```the Wang Licence (3-BSD)```
+###### Made available under ```the Wang Licence (GPL)```
 ## 1.1 几个概念
 ### 1.1.1 竞争
 #### 定义 
