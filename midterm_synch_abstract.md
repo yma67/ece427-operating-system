@@ -1,5 +1,5 @@
 # 更高级的抽象
-###### Made available under ```the Wang Licence (3-BSD)```
+###### Made available under ```the Wang Licence (GPL)```
 ## 信号量
 ### 定义
 ```cpp
@@ -96,8 +96,53 @@ Process is leaving Monitor
     - unlock the monitor
     - signaling process to wake up a process that is sleeping on a conditional variable 
     - signaling process needs to go to sleep immediately after signaling
+### 由信号量实现 (Hoare)
+```cpp
+struct monitor {
+
+    struct condition {
+        semaphore x_sem;
+        int x_count;
+    public:
+        condition(): x_sem(0), x_count(0) {}
+        void wait();
+        void signal();
+    }
+    
+    int next_count;
+    semaphore next, mutex;
+    monitor(): next_count(0), next(0), mutex(1) {}
+    
+    void condition::wait() {
+        x_count += 1;
+        x_sem.wait();
+        if (next_count > 0)
+            next.signal();
+        else
+            mutex.signal();
+        x_count -= 1;
+    }
+    
+    void condition::signal() {
+        if (x_count > 0) {
+            next_count += 1;
+            x_sem.signal();
+            next.wait();
+            next_count -= 1;
+        }
+    }
+    
+    void monitor_func() {
+        mutex.wait();
+        // Function Body
+        if (next_count > 0)
+            next.signal();
+        else 
+            mutex.signal();
+    }
+}
+```
 ### 🙄 Extra 
 - Use ```UMPLE``` to generate
 - Use ```jUCMNav``` to model strategy
 - Apply Feature Modeling
-### 由信号量实现 (Hoare’s Monitor)
