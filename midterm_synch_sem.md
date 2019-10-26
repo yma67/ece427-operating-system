@@ -5,22 +5,24 @@
 struct semaphore {
     int count;
     vector<process> queue;
+    void semaphore::wait();
+    void semaphore::post();
 }
 
 // uninterruptabla
-semaphore::wait(semaphore s) {
-    s.count -= 1;
-    if (s.count < 0) {
-        queue.push_back(getproc());
+void semaphore::wait() {
+    this->count -= 1;
+    if (this->count < 0) {
+        (this->queue).push_back(getproc());
         getproc().block();
     }
 }
 
 // uninterruptabla
-semaphore::post(semaphore s) {
-    s.count += 1;
+void semaphore::post() {
+    this->count += 1;
     if (s.count >= 0) {
-        auto proc = queue.pop_back();
+        auto proc = (this->queue).pop_back();
         proc.ready();
     }
 }
