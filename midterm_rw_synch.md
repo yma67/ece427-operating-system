@@ -61,37 +61,53 @@ No assumptions be made about speeds or number of CPUs.
 如果一个线程想要进入临界区，那么他最终会成功 <br>
 换句话说, **No process should have to wait forever to enter its critical section**
 ###### 反例1: 死锁
-```cpp
-// flag[k]: proc k entered critical section
-bool flag[2] = {false, false};
-...
-// def Proc 0
+<table>
+<tr>
+<td>
+Process 0 
+</td>
+<td>
+Process 1
+</td>
+</tr>
+<tr>
+<td>
+<pre lang="cpp">
 ...
 flag[0] = true;
 while (flag[1]);
 // critical section
 flag[0] = false;
 ...
-// END Proc 0
-...
-// def Proc 1
+</pre>
+</td>
+<td>
+<pre lang="cpp">
 ...
 flag[1] = true;
 while (flag[0]);
 // critical section
 flag[1] = false;
 ...
-// END Proc 1
-```
+</pre>
+</td>
+</tr>
 - 进程0执行完flag[0] = true，调度
 - 进程1执行完flag[1] = true
 - 死锁
 ###### 反例2: 活锁
-```cpp
-// flag[k]: proc k entered critical section
-bool flag[2] = {false, false};
-...
-// def Proc 0
+<table>
+<tr>
+<td>
+Process 0 
+</td>
+<td>
+Process 1
+</td>
+</tr>
+<tr>
+<td>
+<pre lang="cpp">
 ...
 flag[0] = true;
 while (flag[1]) {
@@ -102,9 +118,10 @@ while (flag[1]) {
 // critical section
 flag[0] = false;
 ...
-// END Proc 0
-...
-// def Proc 1
+</pre>
+</td>
+<td>
+<pre lang="cpp">
 ...
 flag[1] = true;
 while (flag[0]) {
@@ -115,36 +132,76 @@ while (flag[0]) {
 // critical section
 flag[1] = false;
 ...
-// END Proc 1
-```
+</pre>
+</td>
+</tr>
 - 当且仅当sleep(random())相等的时候才会出现卡死
 ##### 1.1.4.1d 有限等待 (Mahesh, Bilibili)
 如果一个线程ti处于入口区，那么在ti的请求被接受前，其他线程进入临界区的时间是有限制的 <br>
 换句话说, **No process running outside its critical section may block other processes**
 ###### 反例
-```cpp
-// turn = k: proc k entered critical section
-int turn = 1;
-...
-// def Proc 0
+<table>
+<tr>
+<td>
+Process 0 
+</td>
+<td>
+Process 1
+</td>
+</tr>
+<tr>
+<td>
+<pre lang="cpp">
 ...
 while (turn != 0);
 // critical section
 turn = 1;
 ...
-// END Proc 0
-...
-// Proc 1
+</pre>
+</td>
+<td>
+<pre lang="cpp">
 ...
 while (turn != 1);
 // critical section
 turn = 0;
 ...
-// END Proc 1
-```
+</pre>
+</td>
+</tr>
 反证法 <br>
 - 假设进程1进入临界区，完成后turn = 0
 - 如果进程0是朱哥设计的，也就是进程0暂时不做为，进程1再次想要进入临界区那是不可能的
 - QED
 ##### 1.1.4.1e 无忙等待 (可选) (Bilibili)
 如果一个线程在等待进入临界区，那么在他可以进入之前会被挂起
+##### 1.1.4.2 软件解决方案: Peterson's Algorithm
+<table>
+<tr>
+<td>
+Process 0 
+</td>
+<td>
+Process 1
+</td>
+</tr>
+<tr>
+<td>
+<pre lang="cpp">
+flags[0] = true;
+turn = 1;
+while (flags[1] && turn == 1);
+// Critical Section
+flags[0] = false;
+</pre>
+</td>
+<td>
+<pre lang="cpp">
+flags[1] = true;
+turn = 0;
+while (flags[0] && turn == 0);
+// critical section
+flags[1] = false;
+</pre>
+</td>
+</tr>
