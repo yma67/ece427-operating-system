@@ -1,6 +1,7 @@
 # 更高级的抽象
 ###### Made available under ```the Wang Licence (GPL)```
 ## 信号量
+目前已被C++11剔除，如果想要使用请```#include <semaphore.h>```或者利用管程实现
 ### 定义
 ```cpp
 // 不可运行的C++
