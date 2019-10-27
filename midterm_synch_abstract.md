@@ -111,7 +111,7 @@ public:
     
     void withdraw(int val) {
         std::unique_lock<std::mutex> lock(mutex);
-        positive.wait(mutex, [this] () -> bool {
+        positive.wait(mutex, [this]() -> bool {
             return balance - val >= 0;
         });
         balance -= val;
