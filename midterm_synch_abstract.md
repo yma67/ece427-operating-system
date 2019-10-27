@@ -35,27 +35,49 @@ void semaphore::signal() {
     - Strict: FIFO
     - ???: Random wakeup
 ### 由管程实现
-```java
-public class Semaphore {
+```cpp
+#include <mutex>
+#include <condition_variable>
 
-    int semVar;
-    
-    public Semaphore(int svar) {
-        this.semVar = svar;
+struct semaphore {
+private:
+    std::mutex mutex;
+    std::condition_variable queue;
+    int count;
+
+public:
+    semaphore(int c = 0) : count(c) {}
+  
+    void signal() {
+        std::unique_lock<std::mutex> lock(mutex);
+        count += 1;
+        queue.notify_one();
     }
     
-    public synchronized void signal() {
-        this.semVar += 1;
-        if (this.semVar <= 0)
-            notify();
+    void wait() {
+        std::unique_lock<std::mutex> lock(mutex);
+        queue.wait(lock, [this]() -> bool {
+            return count > 0;
+        });
+        count -= 1;
     }
     
-    public synchronized void wait() {
-        this.semVar -= 1;
-        if (this.semVar < 0)
-            wait();
+    void signal_m() {
+        std::unique_lock<std::mutex> lock(mutex);
+        count += 1;
+        if (count <= 0)
+            queue.notify_one();
     }
-}
+  
+    void wait_m() {
+        std::unique_lock<std::mutex> lock(mutex);
+        count -= 1;
+        // if (count < 0) queue.wait()
+        queue.wait(lock, [this]() -> bool {
+            return count >= 0;
+        });
+    }
+};
 ```
 ## 管程
 ### 定义
@@ -70,36 +92,28 @@ public class Semaphore {
     - wait suspends process that executes it until someone else does a signal (different from semaphore wait)
     - signal resumes one suspended process. no effect if nobody's waiting (different from semaphore free/signal)
 ### 示例
-```java
-class Balance {
+```cpp
+struct Balance {
+private:
+    int balance; 
+    std::mutex lock;
+    std::condition_variable positive;
 
-    private int balance; 
-    private final Lock lock = new ReentrantLock();
-    private final Condition positive = lock.newCondition();
+public:
+    Balance(int b) balance(b) {}
     
-    public Balance(int balance) {
-        this.balance = balance;
+    void deposit(int val) {
+        std::unique_lock<std::mutex> lock(mutex);
+        balance += val;
+        positive.notify_one();
     }
     
-    public void deposit(int val) throws InterruptedException {
-        lock.lock();
-        try {
-            this.balance += val;
-            positive.signal();
-        } finally {
-            lock.unlock();
-        }
-    }
-    
-    public void withdraw(int val) throws InterruptedException {
-        lock.lock();
-        try {
-            while (this.balance - val < 0)
-                positive.await();
-            this.balance -= val;
-        } finally {
-            lock.unlock();
-        }
+    void withdraw(int val) {
+        std::unique_lock<std::mutex> lock(mutex);
+        positive.wait(mutex, [this] () -> bool {
+            return balance - val >= 0;
+        });
+        balance -= val;
     }
 }
 ```
