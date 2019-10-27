@@ -22,7 +22,7 @@ void semaphore::wait() {
 // uninterruptable
 void semaphore::signal() {
     this->count += 1;
-    if (s.count >= 0) {
+    if (s.count <= 0) {
         auto proc = (this->queue).pop_back();
         proc.ready();
     }
@@ -34,37 +34,26 @@ void semaphore::signal() {
 - 2 Types
     - Strict: FIFO
     - ???: Random wakeup
-### 由管程实现 (同示例)
+### 由管程实现
 ```java
 public class Semaphore {
 
     int semVar;
-    private final Lock lock = new ReentrantLock();
-    private final Condition queue = lock.newCondition();
     
     public Semaphore(int svar) {
         this.semVar = svar;
     }
     
-    public void signal() throws InterruptedException {
-        lock.lock();
-        try {
-            this.semVar += 1;
-            positive.signal();
-        } finally {
-            lock.unlock();
-        }
+    public synchronized void signal() {
+        this.semVar += 1;
+        if (this.semVar <= 0)
+            notify();
     }
     
-    public void wait() throws InterruptedException {
-        lock.lock();
-        try {
-            while (this.semVar - 1 < 0)
-                positive.await();
-            this.semVar -= 1;
-        } finally {
-            lock.unlock();
-        }
+    public synchronized void wait() {
+        this.semVar -= 1;
+        if (this.semVar < 0)
+            wait();
     }
 }
 ```
