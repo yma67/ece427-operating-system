@@ -257,7 +257,6 @@ public:
         write_queue.wait(lc, [this]() -> bool {
             return !(read_count > 0 || write_count > 0);
         });
-        std::cout << "w" << std::endl;
         write_count += 1;
     }
     
@@ -308,7 +307,6 @@ public:
         });
         write_wait -= 1;
         write_count += 1;
-        std::cout << "w" << std::endl;
     }
     
     void write_unlock() {
