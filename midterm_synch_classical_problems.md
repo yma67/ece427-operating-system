@@ -60,7 +60,6 @@ private:
     int slots, out_ptr, in_ptr, count;
     std::mutex lock;
     std::condition_variable full, empty;
-    
 public:
     bounded_buffer(int c) : slots(c), out_ptr(0), in_ptr(0), count(0) {
         buffer = new T*[slots + 1];
@@ -103,7 +102,6 @@ private:
     int slots, out_ptr, in_ptr, count;
     std::mutex lock;
     std::condition_variable full, empty;
-    
 public:
     bounded_buffer(int c) : slots(c), out_ptr(0), in_ptr(0), count(0) {
         buffer = new T[slots];
@@ -167,7 +165,6 @@ private:
     int slots, out_ptr, in_ptr, count;
     std::mutex lock;
     std::condition_variable full, empty;
-    
 public:
     bounded_buffer(int c) : slots(c), out_ptr(0), in_ptr(0), count(0) {}
     
