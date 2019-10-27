@@ -197,7 +197,7 @@ public:
         count -= 1;
         full.notify_one();
     }
-}
+};
 ```
 注意
 - Allocate one more slot outside monitor
@@ -223,9 +223,90 @@ void consumer_thread() {
 ### 读者优先
 #### 信号量实现
 #### 管程实现
+```cpp
+struct reader_writer {
+private:
+    int read_count, write_count;
+    std::mutex lock;
+    std::condition_variable read_queue, write_queue;
+public:
+    reader_writer() : read_count(0), write_count(1) {}
+    
+    void read_lock() {
+        std::unique_lock<std::mutex> lc(lock);
+        read_queue.wait(lc, [this]() -> bool {
+            return !(write_count > 0);
+        });
+        read_count += 1;
+        read_queue.notify_one();
+    }
+    
+    void read_unlock() {
+        std::unique_lock<std::mutex> lc(lock);
+        read_count -= 1;
+        if (read_count == 0)
+            write_queue.notify_one();
+    }
+    
+    void write_lock() {
+        std::unique_lock<std::mutex> lc(lock);
+        write_queue.wait(lc, [this]() -> bool {
+            return !(read_count > 0 || write_count > 0);
+        });
+        write_count += 1;
+    }
+    
+    void write_unlock() {
+        write_count -= 1;
+        read_queue.notify_one();
+        write_queue.notify_one();
+    }
+};
+```
 ### 写者优先
 #### 信号量实现
 #### 管程实现
+```cpp
+struct reader_writer {
+private:
+    int read_count, write_count;
+    std::mutex lock;
+    std::condition_variable read_queue, write_queue;
+public:
+    reader_writer() : read_count(0), write_count(1) {}
+    
+    void read_lock() {
+        std::unique_lock<std::mutex> lc(lock);
+        read_queue.wait(lc, [this]() -> bool {
+            return !(write_count > 0);
+        });
+        read_count += 1;
+        read_queue.notify_one()
+    }
+    
+    void read_unlock() {
+        std::unique_lock<std::mutex> lc(lock);
+        read_count -= 1;
+        if (read_count == 0)
+            write_queue.notify_one();
+    }
+    
+    void write_lock() {
+        std::unique_lock<std::mutex> lc(lock);
+        write_count += 1;
+        write_queue.wait(lc, [this]() -> bool {
+            return !(read_count > 0 || write_count > 1);
+        });
+    }
+    
+    void write_unlock() {
+        write_count -= 1;
+        if (write_count > 0)
+            write_queue.notify_one();
+        read_queue.notify_one();
+    }
+};
+```
 ### 公平竞争
 #### 信号量实现
 #### 管程实现
