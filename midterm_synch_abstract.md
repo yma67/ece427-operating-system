@@ -135,7 +135,7 @@ Process is leaving Monitor
 ### 由信号量实现 (Hoare)
 ```cpp
 struct monitor {
-
+private:
     struct condition {
         semaphore x_sem;
         int x_count;
@@ -147,8 +147,10 @@ struct monitor {
     
     int next_count;
     semaphore next, mutex;
-    monitor(): next_count(0), next(0), mutex(1) {}
     
+public:
+    monitor(): next_count(0), next(0), mutex(1) {}
+
     void condition::wait() {
         x_count += 1;
         x_sem.wait();
