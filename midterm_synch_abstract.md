@@ -3,6 +3,7 @@
 ## 信号量
 ### 定义
 ```cpp
+// 不可运行的C++
 struct semaphore {
     int count;
     vector<process> queue;
