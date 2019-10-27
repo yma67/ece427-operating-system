@@ -116,7 +116,7 @@ public:
         });
         balance -= val;
     }
-}
+};
 ```
 ### What's Happened? Version 1
 Process is entering Monitor
@@ -175,7 +175,7 @@ struct monitor {
         else 
             mutex.signal();
     }
-}
+};
 ```
 ### 🙄 Extra 
 - Use ```UMPLE``` to generate
