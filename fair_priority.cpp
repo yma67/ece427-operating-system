@@ -39,7 +39,7 @@ public:
     void write_lock() {
         std::unique_lock<std::mutex> lc(lock);
         write_wait += 1;
-        if (read_count > 0 || write_count > 1)
+        if (read_count > 0 || write_count > 0)
             write_queue.wait(lc);
         write_wait -= 1;
         write_count += 1;

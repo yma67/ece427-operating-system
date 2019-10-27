@@ -22,7 +22,7 @@ public:
     void read_lock() {
         std::unique_lock<std::mutex> lc(lock);
         read_queue.wait(lc, [this]() -> bool {
-            return !(write_count + write_wait > 0);
+            return !(write_count > 0 || write_wait > 0);
         });
         read_count += 1;
         read_queue.notify_one();
@@ -49,7 +49,7 @@ public:
     void write_unlock() {
         std::unique_lock<std::mutex> lc(lock);
         write_count -= 1;
-        if (write_count + write_wait > 0)
+        if (write_count > 0 || write_wait > 0)
             write_queue.notify_one();
         else
             read_queue.notify_one();
