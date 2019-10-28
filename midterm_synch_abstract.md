@@ -74,10 +74,8 @@ public:
     void wait_m() {
         std::unique_lock<std::mutex> lock(mutex);
         count -= 1;
-        // if (count < 0) queue.wait()
-        queue.wait(lock, [this]() -> bool {
-            return count >= 0;
-        });
+        if (count < 0) 
+            queue.wait();
     }
 };
 ```
