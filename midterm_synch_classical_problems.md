@@ -368,3 +368,44 @@ public:
     }
 };
 ```
+## 哲学家进餐
+```cpp
+struct dining_philosopher {
+private:
+    enum status_t {THINKING, HUNGRY, THINKING};
+    int num_phil;
+    std::vector<status_t> status;
+    std::mutex lock;
+    std::vector<std::condition_variable> self;
+
+public:
+    dining_philosopher(int n): num_phil(n), status(std::vector<status_t> (n, THINKING)), 
+                               self(std::vector<std::condition_variable> (n)) {}
+    void pick_up(int i) {
+        std::unique_lock<std::mutex> lock(mutex);
+        status[(i)] = HUNGRY;
+        if (status[(i + num_phil - 1) % num_phil] != EATING && 
+            status[(i + 1) % num_phil] != EATING) {
+            status[(i)] = EATING;
+            self[(i)].notify_one(); // optional
+        } else {
+            self[(i)].wait();
+        }
+    }
+    
+    void put_down(int i) {
+        std::unique_lock<std::mutex> lock(mutex);
+        status[(i)] = THINKING;
+        if (status[(i + num_phil - 1) % num_phil] == HUNGRY && 
+            status[(i + num_phil - 2) % num_phil] != EATING) {
+            status[(i + num_phil - 1) % num_phil] = EATING;
+            status[(i + num_phil - 1) % num_phil].notify_one();
+        }
+        if (status[(i + 1) % num_phil] == HUNGRY && 
+            status[(i + 2) % num_phil] != EATING) {
+            status[(i + 1) % num_phil] = EATING;
+            status[(i + 1) % num_phil].notify_one();
+        }
+    }
+}
+```
