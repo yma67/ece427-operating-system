@@ -369,6 +369,29 @@ public:
 };
 ```
 ## 哲学家进餐
+### 信号量实现
+```cpp
+semaphore c(n);
+
+void manger(int i) {
+    if (i != n - 1) {
+        wait(c[(i)]);
+        wait(c[(i + 1) % n]); 
+        // eat
+        post(c[(i + 1) % n]);
+        post(c[(i)]);
+        // think
+    } else {
+        wait(c[(i + 1) % n]);
+        wait(c[(i)]);
+        // eat
+        post(c[(i)]);
+        post(c[(i + 1) % n]);
+        // think
+    }
+}
+```
+### 管程实现
 ```cpp
 struct dining_philosopher {
 private:
