@@ -14,6 +14,12 @@
 - Control access and provide interfaces
 - Manage resources
 - Provide abstractions
+- Creating and deleting both user and system processes
+- Suspending and resuming processes
+- Providing mechanisms for process synchronization
+- Providing mechanisms for process communication
+- Providing mechanisms for deadlock handling
+
 ## IO
 - After I/O starts, control returns to user program only upon I/O completion (Synchronous)
   - Wait instruction idles the CPU until the next interrupt
@@ -69,3 +75,17 @@
     - System call changes mode to kernel, return from call resets it to user
 - Increasingly CPUs support multi-mode operations
   - i.e. virtual machine manager (VMM) mode for guest VMs
+  
+## From user to kernel
+- User mode is prevented from engaging in privileged operations (e.g., file access)
+- Program needs to switch to kernel mode to carry out those operations
+- Need to protect the system by restricting what application can do
+
+## How system call is processed?
+1. system service is requested (system call)
+2. switch mode; verify arguments and service
+3. branch to the service function via system call table
+4. return from service function; switch mode
+5. return from system call
+
+background program runs in user context
