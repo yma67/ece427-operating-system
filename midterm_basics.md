@@ -89,3 +89,43 @@
 5. return from system call
 
 background program runs in user context
+
+## Process IO
+- Each process has an array of “handles”
+- Each handle corresponds to an external device
+- For example, you want to print something to screen, you write to handle #1
+- You want to read something from keyboard, you read from handle #0
+- You can setup handles to point to your data file and start reading and writing
+- File descriptors
+  - A array structure maintained by the kernel for each process
+  - Held in the kernel memory and process can modify them through syscall
+  - File descriptor #0 (stdin): is the keyboard or whatever the standard input is
+  - File descriptor #1 (stdout): is the screen, printer or whatever the standard output is
+  - File descriptor #2 (stderr): is the error device which is mostly the same as stdout
+  - By having error separate from stdout, we can separate them out as needed
+```c
+int fd = open(”filename”, …)
+
+- The value returned by the open() is file descriptor pointing to the given file
+- You can think that the OS did a “open” for you on stdin, stdout, stderr when it created the process
+
+// output redirection
+close(1);
+open("fname");
+// or dup("fname");, dup2("fname", 1);, or 
+printf(...);
+```
+## Amdahl’s Law
+- Identifies performance gains from adding additional cores to an application that has both serial and parallel components
+- S is serial portion
+- N processing cores
+```
+m core: |-----|======| ==> tm = s + p / m
+n core: |-----|=|      ==> tn = s + p / n
+sup(speedup) = 1 / S + (1 - S) / N
+```
+## User / Kernel Thread
+- User threads - management done by user-level threads library (GNU Pth)
+- Kernel threads - Supported by the Kernel
+- Examples – virtually all general purpose operating systems, including: Windows, Solaris, Linux
+- POSIX Pthreads – is a thread programming standard – most of the time implemented as kernel-level threads
