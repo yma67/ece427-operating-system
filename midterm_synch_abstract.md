@@ -151,11 +151,11 @@ public:
 
     void condition::wait() {
         x_count += 1;
-        x_sem.wait();
         if (next_count > 0)
             next.signal();
         else
             mutex.signal();
+        x_sem.wait();
         x_count -= 1;
     }
     
