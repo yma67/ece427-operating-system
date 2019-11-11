@@ -69,6 +69,7 @@ typedef struct _page_t {
 
 // In memory Data structures
 typedef struct _fopen_entry_t {
+    char fname[NAME_LIM + 1];
     uint32_t inode_idx;
     uint32_t read_ptr;
     uint32_t write_ptr;
@@ -84,5 +85,6 @@ pageptr_t idx_node_cache[BLOCK_SIZE / sizeof(pageptr_t)];
 
 void mksfs(int flags);
 int sfs_fopen(char *name);
+int sfs_write(int fileID, char *buf, int length);
 
 #endif
