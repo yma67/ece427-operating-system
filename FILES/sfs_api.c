@@ -229,17 +229,15 @@ int sfs_write(int fileID, char *buf, int length) {
         if (nth_page < 12) {
             if (inode_cache[file_open_table[fileID].inode_idx].pages[nth_page] == PGPTR_NULL) {
                 inode_cache[file_open_table[fileID].inode_idx].pages[nth_page] = dalloc();
-                if (inode_cache[file_open_table[fileID].inode_idx].pages[nth_page] == PGPTR_NULL) {
+                if (inode_cache[file_open_table[fileID].inode_idx].pages[nth_page] == PGPTR_NULL) 
                     return byte_written;
-                }
             }
             to_write = inode_cache[file_open_table[fileID].inode_idx].pages[nth_page];
         } else {
             if (inode_cache[file_open_table[fileID].inode_idx].index_page == PGPTR_NULL) {
                 inode_cache[file_open_table[fileID].inode_idx].index_page = dalloc();
-                if (inode_cache[file_open_table[fileID].inode_idx].index_page == PGPTR_NULL) {
+                if (inode_cache[file_open_table[fileID].inode_idx].index_page == PGPTR_NULL) 
                     return byte_written;
-                }
                 for (int i = 0; (unsigned)i < (BLOCK_SIZE / sizeof(pageptr_t)); i++) 
                     page_buf->content.index[i] = PGPTR_NULL;
                 write_blocks(1 + NUM_DATA_BLOCKS + 
@@ -263,6 +261,9 @@ int sfs_write(int fileID, char *buf, int length) {
         memcpy(page_buf + pos_in_page, buf, leftover_in_page);
         write_blocks(1 + NUM_DATA_BLOCKS + to_write, 1, page_buf);
         byte_written += leftover_in_page;
+        file_open_table[fileID].write_ptr += leftover_in_page;
+        inode_cache[file_open_table[fileID].inode_idx].fsize += leftover_in_page;
+        synch_inode(write);
     }
     return byte_written;
 }
