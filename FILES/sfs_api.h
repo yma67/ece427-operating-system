@@ -7,6 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Assumption / constrains
+// 1. size of super block is less than the page size
+// 2. page size is divisible by size of i node
+// 3. data page have no extra bits
+// 4. bitmap fits within one page 
+// 5. assumption as numerical values are as follows
 #define DISC_NAME "sherry"
 #define BLOCK_SIZE 1024
 #define NUM_BLOCKS 1090
