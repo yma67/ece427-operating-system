@@ -80,8 +80,9 @@ dirent_t directory_cache[NUM_DATA_BLOCKS];
 uint8_t bitmap[NUM_DATA_BLOCKS];
 
 super_block_t super_block;
+pageptr_t idx_node_cache[BLOCK_SIZE / sizeof(pageptr_t)];
 
 void mksfs(int flags);
-
+int sfs_fopen(char *name);
 
 #endif
