@@ -265,5 +265,6 @@ int sfs_write(int fileID, char *buf, int length) {
         inode_cache[file_open_table[fileID].inode_idx].fsize += leftover_in_page;
         synch_inode(write);
     }
+    free(page_buf);
     return byte_written;
 }
