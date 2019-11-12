@@ -19,21 +19,20 @@
 
 #define synch_directory(_opt) {                                                \
     page_t* page_buf = (page_t *)calloc(sizeof(page_t), 1);                    \
-    int is_finished = 0;                                                       \
     for (int i = 0; i < 12; i++) {                                             \
-        if (inode_cache[0].pages[i] == PGPTR_NULL) {                           \
-            is_finished = 1;                                                   \
-            break;                                                             \
-        }                                                                      \
+        if (inode_cache[0].pages[i] == PGPTR_NULL)                             \
+            continue;                                                          \
         _opt##_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].pages[i],          \
-                    1, directory_cache + i * (BLOCK_SIZE / sizeof(dirent_t))); \
+                      1, directory_cache + i * (BLOCK_SIZE/sizeof(dirent_t))); \
     }                                                                          \
-    if ((!is_finished) && inode_cache[0].index_page != PGPTR_NULL) {           \
+    if (inode_cache[0].index_page != PGPTR_NULL) {                             \
         read_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].index_page,          \
                     1, page_buf);                                              \
         for (int i = 0; (unsigned long)i < (NUM_DATA_BLOCKS -                  \
                          12 * (BLOCK_SIZE / sizeof(dirent_t))) /               \
                          (BLOCK_SIZE / sizeof(dirent_t)); i++) {               \
+            if (page_buf->content.index[i] == PGPTR_NULL)                      \
+                continue;                                                      \
             _opt##_blocks(1 + NUM_INODE_BLOCKS + page_buf->content.index[i],   \
                           1, directory_cache +                                 \
                           (12 + i) * (BLOCK_SIZE / sizeof(dirent_t)));         \
@@ -59,13 +58,6 @@
     synch_bitmap(write);                                                       \
     first_free;                                                                \
 })
-
-#define synch_idx_inode_cache(_opt) {                                          \
-    if (inode_cache[0].index_page != PGPTR_NULL) {                             \
-        _opt##_blocks(1 + NUM_DATA_BLOCKS + inode_cache[0].index_page,         \
-                      1, idx_node_cache);                                      \
-    }                                                                          \
-}
 
 void mksfs(int flag) {
     if (flag) {
@@ -102,11 +94,11 @@ void mksfs(int flag) {
         // File Open Table 
         for (int i = 0; i < NUM_DATA_BLOCKS; i++)
             file_open_table[i].inode_idx = INODE_NULL;
+        // initiallize directories
         for (int i = 0; i < NUM_DATA_BLOCKS; i++)
             directory_cache[i].inode_index = INODE_NULL;
         synch_superblock(read);
         synch_inode(read);
-        synch_idx_inode_cache(read);
         synch_directory(read);
         synch_bitmap(read);
     }
@@ -114,6 +106,7 @@ void mksfs(int flag) {
 
 int sfs_open(char *name) {
     int is_fexist = 0, file_index = INODE_NULL;
+    page_t* page_buf = (page_t *)calloc(sizeof(page_t), 1);
     for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
         if (!strcmp(name, directory_cache[i].name)) {
             is_fexist = 1;
@@ -123,6 +116,7 @@ int sfs_open(char *name) {
     }
     // make new file
     if (!is_fexist) {
+        // Find a good inode
         int empty_inode_idx = 0, empty_dir_idx = PGPTR_NULL;
         for (int i = 1; i < NUM_DATA_BLOCKS; i++) {
             if (inode_cache[i].link_cnt < 1) {
@@ -130,16 +124,19 @@ int sfs_open(char *name) {
                 break;
             }
         }
+        // Find a good directory entry
         for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
             if (directory_cache[i].inode_index == INODE_NULL) {
                 empty_dir_idx = i;
                 break;
             }
         }
-        if (empty_dir_idx == PGPTR_NULL) {
+        // if no good inode, then max no. file reached
+        if (empty_dir_idx == PGPTR_NULL || empty_inode_idx == 0) {
             perror("File Num overflow\n");
             return -1;
         }
+        // new inode for file
         inode_cache[empty_inode_idx].link_cnt = 1;
         inode_cache[empty_inode_idx].uid = 0; 
         inode_cache[empty_inode_idx].fsize = 0;
@@ -148,41 +145,61 @@ int sfs_open(char *name) {
                                PGPTR_NULL, PGPTR_NULL, PGPTR_NULL, PGPTR_NULL};
         memcpy(inode_cache[empty_inode_idx].pages, page_vec, 12 * sizeof(uint32_t));
         inode_cache[empty_inode_idx].index_page = PGPTR_NULL;
+        // Allocate directory enough directory block for the directory entry to be valid
         int ent_per_page = (BLOCK_SIZE / sizeof(dirent_t));
+        // if the good directory block maps to some page pointed by 12 page pointers
         if (empty_dir_idx < 12 * ent_per_page) {
             pageptr_t dir_pageid = inode_cache[0].pages[empty_dir_idx / ent_per_page];
+            // if corresponding pageid is NULL, allocate new page
             if (dir_pageid == PGPTR_NULL) {
                 inode_cache[0].pages[empty_dir_idx / ent_per_page] = dalloc();
+                // return ERROR if disc full
                 if (inode_cache[0].pages[empty_dir_idx / ent_per_page] == PGPTR_NULL) 
                     return -1;
+                // write EMPTY directory entry marker to this new allocated page
                 for (int i = 0; (unsigned)i < (BLOCK_SIZE / sizeof(dirent_t)); i++) 
                     directory_cache[(empty_dir_idx / ent_per_page) * 
                                     (ent_per_page) + i].inode_index = INODE_NULL;
             }
         } else {
+            // or the directory block maps to some page pointed in index page
+            // if no such index page, allocate one
             if (inode_cache[0].index_page == PGPTR_NULL) {
                 inode_cache[0].index_page = dalloc();
                 if (inode_cache[0].index_page == PGPTR_NULL) 
                     return -1;
+                // mark page pointer to null
+                read_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].index_page, 
+                            1, page_buf);
                 for (int i = 0; (unsigned)i < (BLOCK_SIZE / sizeof(pageptr_t)); i++) 
-                    idx_node_cache[i] = PGPTR_NULL;
+                    page_buf->content.index[i] = PGPTR_NULL;
+                // write initiallized index page to disc
+                write_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].index_page, 
+                             1, page_buf);
             }
-            if (idx_node_cache[empty_dir_idx / ent_per_page] == PGPTR_NULL) { 
-                idx_node_cache[empty_dir_idx / ent_per_page] = dalloc();
-                if (idx_node_cache[empty_dir_idx / ent_per_page] == PGPTR_NULL)
+            // read original index page from disc
+            read_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].index_page, 1, page_buf);
+            // if corresponding page pointer is null, allocate new page
+            if (page_buf->content.index[empty_dir_idx / ent_per_page] == PGPTR_NULL) { 
+                page_buf->content.index[empty_dir_idx / ent_per_page] = dalloc();
+                if (page_buf->content.index[empty_dir_idx / ent_per_page] == PGPTR_NULL)
                     return -1;
+                // mark page pointer to null
                 for (int i = 0; (unsigned)i < (BLOCK_SIZE / sizeof(dirent_t)); i++)
                     directory_cache[(empty_dir_idx / ent_per_page) * 
                                     (ent_per_page) + i].inode_index = INODE_NULL;
             }
+            // write updated index page to disc
+            write_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].index_page,1, page_buf);
         }
+        // update directory cache and write to disc
         directory_cache[empty_dir_idx].inode_index = empty_inode_idx;
         strcpy(directory_cache[empty_inode_idx].name, name);
-        synch_idx_inode_cache(write);
         synch_directory(write);
         synch_inode(write);
         synch_bitmap(write);
     } else {
+        // if file opened, return its fd
         for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
             if (!strcmp(file_open_table[i].fname, name)) {
                 return i;
@@ -191,30 +208,36 @@ int sfs_open(char *name) {
     }
     int empty_fopen_index = INODE_NULL;
     file_index = INODE_NULL;
+    // find a slot in file descriptor table
     for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
         if (file_open_table[i].inode_idx == INODE_NULL) {
             empty_fopen_index = i;
             break;
         }
     }
+    // if full return
     if (empty_fopen_index == INODE_NULL) {
         perror("file overflow\n");
         return -1;
     }
+    // find a slot in directory
     for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
         if (!strcmp(directory_cache[i].name, name)) {
             file_index = i;
             break;
         }
     }
+    // return on full
     if (file_index == INODE_NULL) {
         perror("Bad file\n");
         return -1;
     }
+    // update file descriptor table
     file_open_table[empty_fopen_index].inode_idx = directory_cache[file_index].inode_index;
     file_open_table[empty_fopen_index].read_ptr = 0;
     file_open_table[empty_fopen_index].write_ptr = inode_cache[directory_cache[file_index].inode_index].fsize;
     strcpy(file_open_table[empty_fopen_index].fname, name);
+    free(page_buf);
     return empty_fopen_index;
 }
 
