@@ -1,5 +1,5 @@
-#ifndef _SFS_API
-#define _SFS_API
+#ifndef SFS_API_H
+#define SFS_API_H
 
 #include <stdint.h>
 #include "disk_emu.h"
@@ -20,11 +20,19 @@
 #define NUM_DATA_BLOCKS 1024
 #define NAME_LIM 27
 
-#define PGPTR_NULL NUM_DATA_BLOCKS 
-#define INODE_NULL NUM_DATA_BLOCKS 
-
 typedef uint32_t iindex_t;
-typedef uint32_t pageptr_t;
+
+const iindex_t INODE_NULL = NUM_DATA_BLOCKS;
+
+typedef struct _pageptr_t {
+    uint16_t end;
+    uint16_t pageid;
+} pageptr_t;
+
+const pageptr_t PGPTR_NULL = {
+    .end = 0,
+    .pageid = NUM_DATA_BLOCKS
+};
 
 // In disc data structures
 
@@ -84,6 +92,7 @@ super_block_t super_block;
 
 void mksfs(int flags);
 int sfs_fopen(char *name);
-int sfs_write(int fileID, char *buf, int length);
+int sfs_fwrite(int fileID, char *buf, int length);
+int sfs_fread(int fileID, char *buf, int length);
 
 #endif
