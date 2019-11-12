@@ -272,7 +272,6 @@ int sfs_write(int fileID, char *buf, int length) {
     if (file_open_table[fileID].inode_idx == INODE_NULL) 
         return 0;
     uint32_t byte_written = 0;
-    uint32_t write_ptr_prev = file_open_table[fileID].write_ptr;
     page_t* page_buf = (page_t *)calloc(sizeof(page_t *), 1);
     while (byte_written < (unsigned)length) {
         uint32_t pos_in_page = file_open_table[fileID].write_ptr % BLOCK_SIZE;
@@ -286,7 +285,8 @@ int sfs_write(int fileID, char *buf, int length) {
                 if (inode_cache[file_open_table[fileID].inode_idx].pages[nth_page].pageid == PGPTR_NULL.pageid) 
                     break;
             }
-            inode_cache[file_open_table[fileID].inode_idx].pages[nth_page].end = pos_in_page + b2w;
+            inode_cache[file_open_table[fileID].inode_idx].pages[nth_page].end = max(pos_in_page + b2w, 
+            inode_cache[file_open_table[fileID].inode_idx].pages[nth_page].end);
             to_write = inode_cache[file_open_table[fileID].inode_idx].pages[nth_page];
         } else {
             if (inode_cache[file_open_table[fileID].inode_idx].index_page.pageid == PGPTR_NULL.pageid) {
@@ -305,7 +305,8 @@ int sfs_write(int fileID, char *buf, int length) {
                 if (page_buf->content.index[nth_page - 12].pageid == PGPTR_NULL.pageid) 
                     break;
             }
-            page_buf->content.index[nth_page - 12].end = pos_in_page + b2w;
+            page_buf->content.index[nth_page - 12].end = max(pos_in_page + b2w, 
+                                                             page_buf->content.index[nth_page - 12].end);
             write_blocks(1 + NUM_DATA_BLOCKS +  
                          inode_cache[file_open_table[fileID].inode_idx].index_page.pageid, 1, page_buf);
             to_write = page_buf->content.index[nth_page - 12];
@@ -335,7 +336,6 @@ int sfs_write(int fileID, char *buf, int length) {
         inode_cache[file_open_table[fileID].inode_idx].fsize = page_count * BLOCK_SIZE;
         synch_inode(write);
     }
-    if (byte_written + write_ptr_prev)
     free(page_buf);
     return byte_written;
 }
