@@ -19,7 +19,7 @@
 #define NUM_INODE_BLOCKS 64
 #define NUM_DATA_BLOCKS 1024
 #define NAME_LIM 27
-
+#define MAXFILENAME NAME_LIM
 typedef uint32_t iindex_t;
 
 const iindex_t INODE_NULL = NUM_DATA_BLOCKS;
@@ -87,12 +87,22 @@ fopen_entry_t file_open_table[NUM_DATA_BLOCKS];
 inode_t inode_cache[NUM_DATA_BLOCKS];
 dirent_t directory_cache[NUM_DATA_BLOCKS];
 uint8_t bitmap[NUM_DATA_BLOCKS];
-
 super_block_t super_block;
+uint32_t current_file = 0;
 
 void mksfs(int flags);
 int sfs_fopen(char *name);
 int sfs_fwrite(int fileID, char *buf, int length);
 int sfs_fread(int fileID, char *buf, int length);
+int sfs_fclose(int fileID);
+int sfs_frseek(int fileID,int loc);
+int sfs_fwseek(int fileID,int loc);
+int sfs_remove(char *file);
+int sfs_getfilesize(char* path);
+int sfs_getnextfilename(char *fname);
+
+#define sfs_GetFileSize(_fname) sfs_getfilesize(_fname)
+#define sfs_get_next_filename(_fname) sfs_getnextfilename(_fname)
+#define sfs_fseek(_o, _p) (sfs_frseek(_o, _p))
 
 #endif

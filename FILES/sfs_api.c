@@ -43,23 +43,23 @@
     free(page_buf);                                                            \
 }
 
-#define dalloc() ({                                                            \
-    synch_bitmap(read);                                                        \
-    uint32_t first_free = 0;                                                   \
-    for (int i = 1; i < NUM_DATA_BLOCKS; i++) {                                \
-        if (bitmap[first_free] == 0) {                                         \
-            first_free = i;                                                    \
-            break;                                                             \
-        }                                                                      \
-    }                                                                          \
-    if (first_free == 0) {                                                     \
-        perror("Disc Full\n");                                                 \
-        INODE_NULL;                                                            \
-    }                                                                          \
-    bitmap[first_free] = 1;                                                    \
-    synch_bitmap(write);                                                       \
-    first_free;                                                                \
-})
+static inline uint16_t dalloc() { 
+    synch_bitmap(read); 
+    uint32_t first_free = 0;
+    for (int i = 1; i < NUM_DATA_BLOCKS; i++) {
+        if (bitmap[first_free] == 0) {
+            first_free = i;
+            break;
+        }
+    }
+    if (first_free == 0) { 
+        perror("Disc Full\n"); 
+        return INODE_NULL; 
+    } 
+    bitmap[first_free] = 1; 
+    synch_bitmap(write); 
+    return first_free;
+}
 
 void mksfs(int flag) {
     if (flag) {
@@ -402,4 +402,67 @@ FINISH_READ:
     }
    free(page_buf);
    return byte_read;
+}
+
+int sfs_fclose(int fileID) {
+    if (file_open_table[fileID].inode_idx != INODE_NULL) {
+        memset(&file_open_table[fileID], 0, sizeof(fopen_entry_t));
+        file_open_table[fileID].inode_idx = INODE_NULL;
+        return 0;
+    }
+    return -1;
+}
+
+int sfs_frseek(int fileID, int loc) {
+    if (file_open_table[fileID].inode_idx != INODE_NULL) {
+        file_open_table[fileID].read_ptr = (unsigned)(loc % (BLOCK_SIZE * NUM_DATA_BLOCKS));
+        return 0;
+    }
+    return -1;
+}
+
+int sfs_fwseek(int fileID, int loc) {
+    if (file_open_table[fileID].inode_idx != INODE_NULL) {
+        file_open_table[fileID].write_ptr = (unsigned)(loc % (BLOCK_SIZE * NUM_DATA_BLOCKS));
+        return 0;
+    }
+    return -1;
+}
+
+int sfs_remove(char *file) {
+    for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
+        if (!strcmp(directory_cache[i].name, file)) {
+            for (int j = 0; j < NUM_DATA_BLOCKS; j++) 
+                if (!strcmp(file, file_open_table[j].fname)) 
+                    sfs_fclose(j);
+            memset(&inode_cache[directory_cache[i].inode_index], 0, sizeof(inode_t));
+            memset(&directory_cache[i], 0, sizeof(dirent_t));
+            directory_cache[i].inode_index = INODE_NULL;
+            synch_directory(write);
+            synch_inode(write);
+            return 0;
+        }
+    }
+    return -1;
+}
+
+int sfs_getnextfilename(char *fname) {
+    int iter = 0;
+    while (directory_cache[current_file].inode_index == INODE_NULL) {
+        if (iter == NUM_DATA_BLOCKS)
+            return -1;
+        current_file = (current_file + 1) % NUM_DATA_BLOCKS;
+        iter = iter + 1;
+    }
+    strcpy(fname, directory_cache[current_file].name);
+    return 0;
+}
+
+int sfs_getfilesize(char* path) {
+    for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
+        if (!strcmp(path, directory_cache[i].name)) {
+            return inode_cache[directory_cache[i].inode_index].fsize;
+        }
+    }
+    return -1;
 }
