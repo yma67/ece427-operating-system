@@ -1,6 +1,8 @@
 #include "sfs_api.h"
 
 static page_t page_buf;
+static uint32_t cur_nth_file = 0;
+static uint32_t num_de_files = 0;
 static const iindex_t INODE_NULL = NUM_DATA_BLOCKS;
 static const pageptr_t PGPTR_NULL = {
     .end = 0,
@@ -16,7 +18,9 @@ uint32_t current_file = 0;
 
 #define min(_a, _b) (_a < _b) ? (_a) : (_b)
 #define max(_a, _b) (_a > _b) ? (_a) : (_b)
-#define synch_bitmap(_opt) _opt##_blocks(NUM_BLOCKS - NUM_DATA_BLOCKS / (BLOCK_SIZE), NUM_DATA_BLOCKS / BLOCK_SIZE, bitmap)
+#define synch_bitmap(_opt) _opt##_blocks(NUM_BLOCKS - NUM_DATA_BLOCKS /            \
+                                         (BLOCK_SIZE), NUM_DATA_BLOCKS /           \
+                                         BLOCK_SIZE, bitmap)                       
 
 static inline void synch_superblock(char *_opt) { 
     if (!strcmp(_opt, "write")) {
@@ -228,6 +232,7 @@ int sfs_fopen(char *name) {
                          inode_cache[0].index_page.pageid, 1, &page_buf);
         }
         // update directory cache and write to disc
+        num_de_files += 1;
         directory_cache[empty_dir_idx].inode_index = empty_inode_idx;
         strcpy(directory_cache[empty_dir_idx].name, name);
         synch_directory("write");
@@ -527,6 +532,7 @@ int sfs_remove(char *file) {
                    sizeof(inode_t));
             memset(&directory_cache[i], 0, sizeof(dirent_t));
             directory_cache[i].inode_index = INODE_NULL;
+            num_de_files -= 1; 
             synch_directory("write");
             synch_inode(write);
             return 0;
@@ -536,14 +542,19 @@ int sfs_remove(char *file) {
 }
 
 int sfs_getnextfilename(char *fname) {
-    int iter = 0;
-    while (directory_cache[current_file].inode_index == INODE_NULL) {
-        if (iter == NUM_DATA_BLOCKS)
-            return -1;
-        current_file = (current_file + 1) % NUM_DATA_BLOCKS;
-        iter = iter + 1;
+    if (cur_nth_file >= num_de_files) {
+        cur_nth_file = 0;
+        return 0;
     }
-    strcpy(fname, directory_cache[current_file].name);
+    for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
+        if (directory_cache[(current_file + i) % NUM_DATA_BLOCKS].inode_index !=
+            INODE_NULL) {
+            strcpy(fname, directory_cache[(current_file + i) % NUM_DATA_BLOCKS].name);
+            current_file = (current_file + i + 1) % NUM_DATA_BLOCKS;
+            cur_nth_file += 1;
+            return 1;
+        }
+    }
     return 0;
 }
 

@@ -93,7 +93,7 @@ static int fuse_read(const char *path, char *buf, size_t size, off_t offset,
     if (fd == -1)
         return -errno;
     
-    if(sfs_fseek(fd, offset) == -1)
+    if(sfs_frseek(fd, offset) == -1)
         return -errno;
     
     res = sfs_fread(fd, buf, size);
@@ -118,7 +118,7 @@ static int fuse_write(const char *path, const char *buf, size_t size,
     if (fd == -1) 
         return -errno;
     
-    if(sfs_fseek(fd, offset) == -1)
+    if(sfs_fwseek(fd, offset) == -1)
         return -errno;
     
     res = sfs_fwrite(fd, buf, size);
