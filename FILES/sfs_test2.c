@@ -145,8 +145,8 @@ main(int argc, char **argv)
       }
       tmp = sfs_fwrite(fds[i], buffer, chunksize);
       if (tmp != chunksize) {
-        fprintf(stderr, "ERROR: Tried to write %d bytes, but wrote %d\n", 
-                chunksize, tmp);
+        fprintf(stderr, "ERROR: Tried to write %d bytes, but wrote %d at %d for file %s\n", 
+                chunksize, tmp, j, names[i]);
         error_count++;
       }
       free(buffer);
