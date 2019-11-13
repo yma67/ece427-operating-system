@@ -15,9 +15,9 @@
 // 5. assumption as numerical values are as follows
 #define DISC_NAME "sherry"
 #define BLOCK_SIZE 1024
-#define NUM_BLOCKS 1090
-#define NUM_INODE_BLOCKS 64
-#define NUM_DATA_BLOCKS 1024
+#define NUM_BLOCKS 4356
+#define NUM_INODE_BLOCKS 256
+#define NUM_DATA_BLOCKS 4096
 #define NAME_LIM 27
 #define MAXFILENAME NAME_LIM
 #define OFFICIAL_LEN 20

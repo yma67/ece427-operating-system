@@ -37,10 +37,10 @@ static inline void synch_directory(char *_opt) {
             continue;
         if (!strcmp(_opt, "read")) {
             read_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].pages[i].pageid,
-                        1, directory_cache + i * (BLOCK_SIZE/sizeof(dirent_t)));
+                        1, &directory_cache[i * (BLOCK_SIZE/sizeof(dirent_t))]);
         } else {
             write_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].pages[i].pageid,
-                         1, directory_cache + i * (BLOCK_SIZE/sizeof(dirent_t)));
+                         1, &directory_cache[i * (BLOCK_SIZE/sizeof(dirent_t))]);
         }
     }
     if (inode_cache[0].index_page.pageid != PGPTR_NULL.pageid) {
@@ -50,11 +50,15 @@ static inline void synch_directory(char *_opt) {
             if (page_buf.content.index[i].pageid == PGPTR_NULL.pageid) 
                 continue;
             if (!strcmp(_opt, "read")) {
-                read_blocks(1 + NUM_INODE_BLOCKS + page_buf.content.index[i].pageid, 1, 
-                            directory_cache + (12 + i) * (BLOCK_SIZE / sizeof(dirent_t)));
+                read_blocks(1 + NUM_INODE_BLOCKS + 
+                            page_buf.content.index[i].pageid, 1, 
+                            &directory_cache[(12 + i) * 
+                            (BLOCK_SIZE / sizeof(dirent_t))]);
             } else {
-                write_blocks(1 + NUM_INODE_BLOCKS + page_buf.content.index[i].pageid, 1, 
-                             directory_cache + (12 + i) * (BLOCK_SIZE / sizeof(dirent_t)));
+                write_blocks(1 + NUM_INODE_BLOCKS + 
+                             page_buf.content.index[i].pageid, 1, 
+                             &directory_cache[(12 + i) * 
+                             (BLOCK_SIZE / sizeof(dirent_t))]);
             }
         }
     } 
@@ -166,20 +170,23 @@ int sfs_fopen(char *name) {
                                 PGPTR_NULL, PGPTR_NULL, PGPTR_NULL, PGPTR_NULL};
         memcpy(inode_cache[empty_inode_idx].pages, page_vec, 12 * sizeof(uint32_t));
         inode_cache[empty_inode_idx].index_page = PGPTR_NULL;
-        // Allocate directory enough directory block for the directory entry to be valid
+        // Allocate directory enough directory block for the directory entry 
+        // to be valid
         int ent_per_page = (BLOCK_SIZE / sizeof(dirent_t));
         // if the good directory block maps to some page pointed by 12 page pointers
         if (empty_dir_idx < 12 * ent_per_page) {
-            pageptr_t dir_pageid = inode_cache[0].pages[empty_dir_idx / ent_per_page];
+            pageptr_t dir_pageid = inode_cache[0].pages[empty_dir_idx / 
+                                                        ent_per_page];
             // if corresponding pageid is NULL, allocate new page
             if (dir_pageid.pageid == PGPTR_NULL.pageid) {
-                inode_cache[0].pages[empty_dir_idx / ent_per_page].pageid = dalloc();
+                inode_cache[0].pages[empty_dir_idx / 
+                                     ent_per_page].pageid = dalloc();
                 // return ERROR if disc full
-                if (inode_cache[0].pages[empty_dir_idx / ent_per_page].pageid == PGPTR_NULL.pageid) {
+                if (inode_cache[0].pages[empty_dir_idx / ent_per_page]
+                    .pageid == PGPTR_NULL.pageid) 
                     return -1;
-                }
                 // write EMPTY directory entry marker to this new allocated page
-                for (int i = 0; (unsigned)i < (BLOCK_SIZE / sizeof(dirent_t)); i++) 
+                for (int i = 0; (unsigned)i < (BLOCK_SIZE/sizeof(dirent_t)); i++) 
                     directory_cache[(empty_dir_idx / ent_per_page) * 
                                     (ent_per_page) + i].inode_index = INODE_NULL;
             }
@@ -192,30 +199,33 @@ int sfs_fopen(char *name) {
                     return -1;
                 }
                 // mark page pointer to null
-                read_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].index_page.pageid, 
-                            1, &page_buf);
-                for (int i = 0; (unsigned)i < (BLOCK_SIZE / sizeof(pageptr_t)); i++) 
+                read_blocks(1 + NUM_INODE_BLOCKS + 
+                            inode_cache[0].index_page.pageid, 1, &page_buf);
+                for (int i = 0; (unsigned)i < (BLOCK_SIZE/sizeof(pageptr_t)); i++)
                     page_buf.content.index[i] = PGPTR_NULL;
                 // write initiallized index page to disc
-                write_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].index_page.pageid, 
-                             1, &page_buf);
+                write_blocks(1 + NUM_INODE_BLOCKS + 
+                             inode_cache[0].index_page.pageid, 1, &page_buf);
             }
             // read original index page from disc
             read_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].index_page.pageid, 
                         1, &page_buf);
             // if corresponding page pointer is null, allocate new page
-            if (page_buf.content.index[empty_dir_idx / ent_per_page].pageid == PGPTR_NULL.pageid) { 
-                page_buf.content.index[empty_dir_idx / ent_per_page].pageid = dalloc();
-                if (page_buf.content.index[empty_dir_idx / ent_per_page].pageid == PGPTR_NULL.pageid) {
+            if (page_buf.content.index[empty_dir_idx / ent_per_page].pageid == 
+                PGPTR_NULL.pageid) { 
+                page_buf.content.index[empty_dir_idx / 
+                                       ent_per_page].pageid = dalloc();
+                if (page_buf.content.index[empty_dir_idx / ent_per_page].pageid ==
+                    PGPTR_NULL.pageid) 
                     return -1;
-                }
                 // mark page pointer to null
-                for (int i = 0; (unsigned)i < (BLOCK_SIZE / sizeof(dirent_t)); i++)
+                for (int i = 0; (unsigned)i < (BLOCK_SIZE/sizeof(dirent_t)); i++)
                     directory_cache[(empty_dir_idx / ent_per_page) * 
                                     (ent_per_page) + i].inode_index = INODE_NULL;
             }
             // write updated index page to disc
-            write_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].index_page.pageid, 1, &page_buf);
+            write_blocks(1 + NUM_INODE_BLOCKS + 
+                         inode_cache[0].index_page.pageid, 1, &page_buf);
         }
         // update directory cache and write to disc
         directory_cache[empty_dir_idx].inode_index = empty_inode_idx;
@@ -258,36 +268,40 @@ int sfs_fopen(char *name) {
         return -1;
     }
     // update file descriptor table
-    file_open_table[empty_fopen_index].inode_idx = directory_cache[file_index].inode_index;
+    file_open_table[empty_fopen_index].inode_idx = directory_cache[file_index]
+                                                   .inode_index;
     file_open_table[empty_fopen_index].read_ptr = 0;
     strcpy(file_open_table[empty_fopen_index].fname, name);
     pageptr_t last_pos = PGPTR_NULL;
     uint32_t page_count = 0;
-    if (inode_cache[directory_cache[file_index].inode_index].index_page.pageid != PGPTR_NULL.pageid) {
+    if (inode_cache[directory_cache[file_index].inode_index].index_page.pageid != 
+        PGPTR_NULL.pageid) {
         read_blocks(1 + NUM_INODE_BLOCKS + 
                     inode_cache[directory_cache[file_index].inode_index]
                     .index_page.pageid, 1, &page_buf);
-        for (int i = (BLOCK_SIZE) / sizeof(pageptr_t) - 1; i > -1; i++) {
+        for (int i = (BLOCK_SIZE) / sizeof(pageptr_t) - 1; i > -1; i--) {
             if (page_buf.content.index[i].pageid != PGPTR_NULL.pageid) {
+                page_count = 12 + i;
                 last_pos = page_buf.content.index[i];
-                page_count = i + 12;
                 break;
             }
         }
     }
     if (last_pos.pageid == PGPTR_NULL.pageid) {
         for (int i = 11; i > -1; i--) {
-            if (inode_cache[directory_cache[file_index].inode_index].pages[i].pageid != PGPTR_NULL.pageid) {
-                last_pos = inode_cache[directory_cache[file_index].inode_index].pages[i];
+            if (inode_cache[directory_cache[file_index].inode_index]
+                            .pages[i].pageid != PGPTR_NULL.pageid) {
                 page_count = i;
-                break;
+                last_pos = inode_cache[directory_cache[file_index].inode_index]
+                                       .pages[i];
             }
         }
     }
     if (last_pos.pageid == PGPTR_NULL.pageid)
         file_open_table[empty_fopen_index].write_ptr = 0;
     else 
-        file_open_table[empty_fopen_index].write_ptr = last_pos.end + page_count * BLOCK_SIZE;
+        file_open_table[empty_fopen_index].write_ptr = page_count * BLOCK_SIZE +
+                                                       last_pos.end;
     return empty_fopen_index;
 }
 
@@ -304,54 +318,69 @@ int sfs_fwrite(int fileID, const char *buf, int length) {
         uint32_t b2w = min(leftover_in_page, length - byte_written);
         pageptr_t to_write;
         if (nth_page < 12) {
-            if (inode_cache[file_open_table[fileID].inode_idx].pages[nth_page].pageid == PGPTR_NULL.pageid) {
-                inode_cache[file_open_table[fileID].inode_idx].pages[nth_page].pageid = dalloc();
-                if (inode_cache[file_open_table[fileID].inode_idx].pages[nth_page].pageid == PGPTR_NULL.pageid) {
+            if (inode_cache[file_open_table[fileID].inode_idx]
+                .pages[nth_page].pageid == PGPTR_NULL.pageid) {
+                inode_cache[file_open_table[fileID].inode_idx]
+                            .pages[nth_page].pageid = dalloc();
+                if (inode_cache[file_open_table[fileID].inode_idx]
+                    .pages[nth_page].pageid == PGPTR_NULL.pageid) {
                     break;
                 }
             }
-            inode_cache[file_open_table[fileID].inode_idx].pages[nth_page].end = max(pos_in_page + b2w, 
+            inode_cache[file_open_table[fileID].inode_idx]
+                        .pages[nth_page].end = max(pos_in_page + b2w, 
             inode_cache[file_open_table[fileID].inode_idx].pages[nth_page].end);
-            to_write = inode_cache[file_open_table[fileID].inode_idx].pages[nth_page];
+            to_write = inode_cache[file_open_table[fileID].inode_idx]
+                       .pages[nth_page];
         } else {
-            if (inode_cache[file_open_table[fileID].inode_idx].index_page.pageid == PGPTR_NULL.pageid) {
-                inode_cache[file_open_table[fileID].inode_idx].index_page.pageid = dalloc();
-                if (inode_cache[file_open_table[fileID].inode_idx].index_page.pageid == PGPTR_NULL.pageid) {
+            if (inode_cache[file_open_table[fileID].inode_idx]
+                .index_page.pageid == PGPTR_NULL.pageid) {
+                inode_cache[file_open_table[fileID].inode_idx]
+                            .index_page.pageid = dalloc();
+                if (inode_cache[file_open_table[fileID].inode_idx]
+                    .index_page.pageid == PGPTR_NULL.pageid) {
                     break;
                 } 
-                for (int i = 0; (unsigned)i < (BLOCK_SIZE / sizeof(pageptr_t)); i++) 
+                for (int i = 0; (unsigned)i < (BLOCK_SIZE/sizeof(pageptr_t)); i++)
                     page_buf.content.index[i] = PGPTR_NULL;
                 rc = write_blocks(1 + NUM_INODE_BLOCKS + 
-                                  inode_cache[file_open_table[fileID].inode_idx].index_page.pageid, 1, &page_buf);
+                                  inode_cache[file_open_table[fileID].inode_idx]
+                                  .index_page.pageid, 1, &page_buf);
                 if (rc != 1) {
-                    perror("bad index init");
+                    perror("bad index init\n");
                     break;
                 }
             }
             rc = read_blocks(1 + NUM_INODE_BLOCKS +
-                        inode_cache[file_open_table[fileID].inode_idx].index_page.pageid, 1, &page_buf);
+                             inode_cache[file_open_table[fileID].inode_idx]
+                             .index_page.pageid, 1, &page_buf);
             if (rc != 1) {
                 break;
             }
-            if (page_buf.content.index[nth_page - 12].pageid == PGPTR_NULL.pageid) {
+            if (page_buf.content.index[nth_page - 12].pageid == 
+                PGPTR_NULL.pageid) {
                 page_buf.content.index[nth_page - 12].pageid = dalloc();
-                if (page_buf.content.index[nth_page - 12].pageid == PGPTR_NULL.pageid) {
+                if (page_buf.content.index[nth_page - 12].pageid == 
+                    PGPTR_NULL.pageid) {
                     break;
                 }
             }
             page_buf.content.index[nth_page - 12].end = max(pos_in_page + b2w, 
-                                                             page_buf.content.index[nth_page - 12].end);
+                                                            page_buf.content
+                                                            .index[nth_page - 12]
+                                                            .end);
             rc = write_blocks(1 + NUM_INODE_BLOCKS +  
-                         inode_cache[file_open_table[fileID].inode_idx].index_page.pageid, 1, &page_buf);
+                              inode_cache[file_open_table[fileID].inode_idx]
+                              .index_page.pageid, 1, &page_buf);
             if (rc != 1) {
-                perror("bad read");
+                perror("bad read\n");
                 break;
             }
             to_write = page_buf.content.index[nth_page - 12];
         }
         rc = read_blocks(1 + NUM_INODE_BLOCKS + to_write.pageid, 1, &page_buf);
         if (rc != 1) {
-            perror("bad read");
+            perror("bad read\n");
             break;
         }
         memcpy(&(page_buf.content.data[pos_in_page]), buf + byte_written, b2w);
@@ -363,7 +392,8 @@ int sfs_fwrite(int fileID, const char *buf, int length) {
         byte_written += b2w;
         file_open_table[fileID].write_ptr += b2w;
         uint32_t page_count = 0;
-        if (inode_cache[file_open_table[fileID].inode_idx].index_page.pageid != PGPTR_NULL.pageid) {
+        if (inode_cache[file_open_table[fileID].inode_idx].index_page.pageid != 
+            PGPTR_NULL.pageid) {
             read_blocks(1 + NUM_INODE_BLOCKS + 
                         inode_cache[file_open_table[fileID].inode_idx]
                         .index_page.pageid, 1, &page_buf);
@@ -374,11 +404,13 @@ int sfs_fwrite(int fileID, const char *buf, int length) {
             }
         }
         for (int i = 0; i < 12; i++) {
-            if (inode_cache[file_open_table[fileID].inode_idx].pages[i].pageid != PGPTR_NULL.pageid) {
-                page_count += inode_cache[file_open_table[fileID].inode_idx].pages[i].end;
+            if (inode_cache[file_open_table[fileID].inode_idx].pages[i].pageid !=
+                PGPTR_NULL.pageid) {
+                page_count += inode_cache[file_open_table[fileID].inode_idx]
+                                          .pages[i].end;
             }
         }
-        inode_cache[file_open_table[fileID].inode_idx].fsize = page_count;
+        inode_cache[file_open_table[fileID].inode_idx].fsize = page_count; 
         synch_inode(write);
     }
     return byte_written;
@@ -390,9 +422,11 @@ int sfs_fread(int fileID, char *buf, int length) {
         return 0;
     pageptr_t last_pos = PGPTR_NULL; 
     uint32_t flen = 0;
-    if (inode_cache[file_open_table[fileID].inode_idx].index_page.pageid != PGPTR_NULL.pageid) {
+    if (inode_cache[file_open_table[fileID].inode_idx].index_page.pageid != 
+        PGPTR_NULL.pageid) {
         read_blocks(1 + NUM_INODE_BLOCKS + 
-                    inode_cache[file_open_table[fileID].inode_idx].index_page.pageid, 1, &page_buf);
+                    inode_cache[file_open_table[fileID].inode_idx]
+                    .index_page.pageid, 1, &page_buf);
         for (int i = (BLOCK_SIZE / sizeof(pageptr_t)) - 1; i > -1; i--) {
             if (page_buf.content.index[i].pageid != PGPTR_NULL.pageid) {
                 flen = 12 + i;
@@ -403,8 +437,10 @@ int sfs_fread(int fileID, char *buf, int length) {
     }
     if (last_pos.pageid == PGPTR_NULL.pageid) {
         for (int i = 11; i > -1; i--) {
-            if (inode_cache[file_open_table[fileID].inode_idx].pages[i].pageid != PGPTR_NULL.pageid) {
-                last_pos = inode_cache[file_open_table[fileID].inode_idx].pages[i];
+            if (inode_cache[file_open_table[fileID].inode_idx].pages[i].pageid != 
+                PGPTR_NULL.pageid) {
+                last_pos = inode_cache[file_open_table[fileID].inode_idx]
+                                       .pages[i];
                 flen = i;
                 break;
             }
@@ -412,26 +448,33 @@ int sfs_fread(int fileID, char *buf, int length) {
     }
     uint32_t byte_read = 0, rcount = 0;
     uint32_t eof = last_pos.end + flen * BLOCK_SIZE;
-    while (byte_read < (unsigned)length && file_open_table[fileID].read_ptr < eof) {
+    while (byte_read < (unsigned)length && file_open_table[fileID].read_ptr < 
+           eof) {
         uint32_t pos_in_page = file_open_table[fileID].read_ptr % BLOCK_SIZE;
         uint32_t leftover_in_page = (BLOCK_SIZE - pos_in_page);
         uint32_t nth_page = file_open_table[fileID].read_ptr / BLOCK_SIZE;
-        uint32_t b2r = min(min(leftover_in_page, length - byte_read), eof - file_open_table[fileID].read_ptr);
+        uint32_t b2r = min(min(leftover_in_page, length - byte_read), 
+                           eof - file_open_table[fileID].read_ptr);
         pageptr_t to_read;
         if (nth_page < 12) {
-            if (inode_cache[file_open_table[fileID].inode_idx].pages[nth_page].pageid == PGPTR_NULL.pageid) {
+            if (inode_cache[file_open_table[fileID].inode_idx].pages[nth_page]
+                .pageid == PGPTR_NULL.pageid) {
                 printf("empty page\n");
                 goto FINISH_READ;
             } 
-            to_read = inode_cache[file_open_table[fileID].inode_idx].pages[nth_page];
+            to_read = inode_cache[file_open_table[fileID].inode_idx]
+                                  .pages[nth_page];
         } else {
-            if (inode_cache[file_open_table[fileID].inode_idx].index_page.pageid == PGPTR_NULL.pageid) {
+            if (inode_cache[file_open_table[fileID].inode_idx]
+                .index_page.pageid == PGPTR_NULL.pageid) {
                 printf("empty page\n");
                 goto FINISH_READ;
             }
             read_blocks(1 + NUM_INODE_BLOCKS +
-                        inode_cache[file_open_table[fileID].inode_idx].index_page.pageid, 1, &page_buf);
-            if (page_buf.content.index[nth_page - 12].pageid == PGPTR_NULL.pageid) {
+                        inode_cache[file_open_table[fileID].inode_idx].index_page
+                        .pageid, 1, &page_buf);
+            if (page_buf.content.index[nth_page - 12].pageid == 
+                PGPTR_NULL.pageid) {
                 printf("empty page\n");
                 goto FINISH_READ;
             }
@@ -458,7 +501,8 @@ int sfs_fclose(int fileID) {
 
 int sfs_frseek(int fileID, int loc) {
     if (file_open_table[fileID].inode_idx != INODE_NULL) {
-        file_open_table[fileID].read_ptr = (unsigned)(loc % (BLOCK_SIZE * NUM_DATA_BLOCKS));
+        file_open_table[fileID].read_ptr = (unsigned)(loc % (BLOCK_SIZE * 
+                                                      NUM_DATA_BLOCKS));
         return 0;
     }
     return -1;
@@ -466,7 +510,8 @@ int sfs_frseek(int fileID, int loc) {
 
 int sfs_fwseek(int fileID, int loc) {
     if (file_open_table[fileID].inode_idx != INODE_NULL) {
-        file_open_table[fileID].write_ptr = (unsigned)(loc % (BLOCK_SIZE * NUM_DATA_BLOCKS));
+        file_open_table[fileID].write_ptr = (unsigned)(loc % (BLOCK_SIZE * 
+                                                       NUM_DATA_BLOCKS));
         return 0;
     }
     return -1;
@@ -478,7 +523,8 @@ int sfs_remove(char *file) {
             for (int j = 0; j < NUM_DATA_BLOCKS; j++) 
                 if (!strcmp(file, file_open_table[j].fname)) 
                     sfs_fclose(j);
-            memset(&inode_cache[directory_cache[i].inode_index], 0, sizeof(inode_t));
+            memset(&inode_cache[directory_cache[i].inode_index], 0, 
+                   sizeof(inode_t));
             memset(&directory_cache[i], 0, sizeof(dirent_t));
             directory_cache[i].inode_index = INODE_NULL;
             synch_directory("write");
