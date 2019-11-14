@@ -22,15 +22,17 @@
 #define MAXFILENAME NAME_LIM
 #define OFFICIAL_LEN 20
 
+// Utility Data structures
+// Inode index
 typedef uint32_t iindex_t;
 
+// Page pointer + end marker
 typedef struct _pageptr_t {
     uint16_t end;
     uint16_t pageid;
 } pageptr_t;
 
 // In disc data structures
-
 // Directory Entry: 32 Bytes 
 typedef struct _dirent_t {
     char name[NAME_LIM + 1];
@@ -66,11 +68,15 @@ typedef struct _page_t {
         uint8_t data[BLOCK_SIZE / sizeof(uint8_t)];
         // 16 inodes
         inode_t inode[BLOCK_SIZE / sizeof(inode_t)];
+        // bytemap
         uint8_t is_free[BLOCK_SIZE / sizeof(uint8_t)];
+        // Place holder
+        uint8_t _ph[BLOCK_SIZE / sizeof(uint8_t)];
     } content;
 } page_t;
 
 // In memory Data structures
+// File descriptor table
 typedef struct _fopen_entry_t {
     char fname[NAME_LIM + 1];
     uint32_t inode_idx;
@@ -78,6 +84,7 @@ typedef struct _fopen_entry_t {
     uint32_t write_ptr;
 } fopen_entry_t;
 
+// Cache
 fopen_entry_t file_open_table[NUM_DATA_BLOCKS];
 inode_t inode_cache[NUM_DATA_BLOCKS];
 dirent_t directory_cache[NUM_DATA_BLOCKS];
@@ -88,6 +95,14 @@ super_block_t super_block;
 static const iindex_t INODE_NULL;
 static const pageptr_t PGPTR_NULL;
 
+// State variables
+static uint32_t num_de_files;
+static uint32_t cur_nth_file;
+
+// Buffer Page
+static page_t page_buf;
+
+// SFS api
 void mksfs(int flags);
 int sfs_fopen(char *name);
 int sfs_fwrite(int fileID, const char *buf, int length);

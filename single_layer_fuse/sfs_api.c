@@ -364,9 +364,8 @@ int sfs_fwrite(int fileID, const char *buf, int length) {
                 inode_cache[file_open_table[fileID].inode_idx]
                             .pages[nth_page].pageid = dalloc();
                 if (inode_cache[file_open_table[fileID].inode_idx]
-                    .pages[nth_page].pageid == PGPTR_NULL.pageid) {
+                    .pages[nth_page].pageid == PGPTR_NULL.pageid) 
                     break;
-                }
             }
             inode_cache[file_open_table[fileID].inode_idx]
                         .pages[nth_page].end = max(pos_in_page + b2w, 
@@ -380,32 +379,27 @@ int sfs_fwrite(int fileID, const char *buf, int length) {
                 inode_cache[file_open_table[fileID].inode_idx]
                             .index_page.pageid = dalloc();
                 if (inode_cache[file_open_table[fileID].inode_idx]
-                    .index_page.pageid == PGPTR_NULL.pageid) {
+                    .index_page.pageid == PGPTR_NULL.pageid) 
                     break;
-                } 
                 for (int i = 0; (unsigned)i < (BLOCK_SIZE/sizeof(pageptr_t)); i++)
                     page_buf.content.index[i] = PGPTR_NULL;
                 rc = write_blocks(1 + NUM_INODE_BLOCKS + 
                                   inode_cache[file_open_table[fileID].inode_idx]
                                   .index_page.pageid, 1, &page_buf);
-                if (rc != 1) {
-                    perror("bad index init\n");
+                if (rc != 1) 
                     break;
-                }
             }
             rc = read_blocks(1 + NUM_INODE_BLOCKS +
                              inode_cache[file_open_table[fileID].inode_idx]
                              .index_page.pageid, 1, &page_buf);
-            if (rc != 1) {
+            if (rc != 1) 
                 break;
-            }
             if (page_buf.content.index[nth_page - 12].pageid == 
                 PGPTR_NULL.pageid) {
                 page_buf.content.index[nth_page - 12].pageid = dalloc();
                 if (page_buf.content.index[nth_page - 12].pageid == 
-                    PGPTR_NULL.pageid) {
+                    PGPTR_NULL.pageid) 
                     break;
-                }
             }
             page_buf.content.index[nth_page - 12].end = max(pos_in_page + b2w, 
                                                             page_buf.content
@@ -414,23 +408,17 @@ int sfs_fwrite(int fileID, const char *buf, int length) {
             rc = write_blocks(1 + NUM_INODE_BLOCKS +  
                               inode_cache[file_open_table[fileID].inode_idx]
                               .index_page.pageid, 1, &page_buf);
-            if (rc != 1) {
-                perror("bad read\n");
+            if (rc != 1) 
                 break;
-            }
             to_write = page_buf.content.index[nth_page - 12];
         }
         rc = read_blocks(1 + NUM_INODE_BLOCKS + to_write.pageid, 1, &page_buf);
-        if (rc != 1) {
-            perror("bad read\n");
+        if (rc != 1) 
             break;
-        }
         memcpy(&(page_buf.content.data[pos_in_page]), buf + byte_written, b2w);
         rc = write_blocks(1 + NUM_INODE_BLOCKS + to_write.pageid, 1, &page_buf);
-        if (rc != 1) {
-            perror("bad read");
+        if (rc != 1) 
             break;
-        }
         byte_written += b2w;
         file_open_table[fileID].write_ptr += b2w;
         uint32_t page_count = 0;
@@ -453,8 +441,8 @@ int sfs_fwrite(int fileID, const char *buf, int length) {
             }
         }
         inode_cache[file_open_table[fileID].inode_idx].fsize = page_count; 
-        synch_inode(write);
     }
+    synch_inode(write);
     return byte_written;
 }
 
@@ -475,7 +463,6 @@ int sfs_fread(int fileID, char *buf, int length) {
         if (nth_page < 12) {
             if (inode_cache[file_open_table[fileID].inode_idx].pages[nth_page]
                 .pageid == PGPTR_NULL.pageid) {
-                printf("empty page\n");
                 memset(buf + byte_read, 0, b2r * sizeof(char));
                 goto FINISH_READ;
             } 
@@ -484,7 +471,6 @@ int sfs_fread(int fileID, char *buf, int length) {
         } else {
             if (inode_cache[file_open_table[fileID].inode_idx]
                 .index_page.pageid == PGPTR_NULL.pageid) {
-                printf("empty page\n");
                 memset(buf + byte_read, 0, b2r * sizeof(char));
                 goto FINISH_READ;
             }
@@ -493,7 +479,6 @@ int sfs_fread(int fileID, char *buf, int length) {
                         .pageid, 1, &page_buf);
             if (page_buf.content.index[nth_page - 12].pageid == 
                 PGPTR_NULL.pageid) {
-                printf("empty page\n");
                 memset(buf + byte_read, 0, b2r * sizeof(char));
                 goto FINISH_READ;
             }
@@ -566,8 +551,7 @@ int sfs_getnextfilename(char *fname) {
     for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
         if (directory_cache[(current_file + i) % NUM_DATA_BLOCKS].inode_index !=
             INODE_NULL) {
-            strcpy(fname, directory_cache[(current_file + i) % NUM_DATA_BLOCKS]
-                   .name);
+            strcpy(fname, directory_cache[(current_file + i) % NUM_DATA_BLOCKS].name);
             current_file = (current_file + i + 1) % NUM_DATA_BLOCKS;
             cur_nth_file += 1;
             return 1;
@@ -577,10 +561,8 @@ int sfs_getnextfilename(char *fname) {
 }
 
 int sfs_getfilesize(const char* path) {
-    for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
-        if (!strcmp(path, directory_cache[i].name)) {
+    for (int i = 0; i < NUM_DATA_BLOCKS; i++) 
+        if (!strcmp(path, directory_cache[i].name)) 
             return inode_cache[directory_cache[i].inode_index].fsize;
-        }
-    }
     return -1;
 }
