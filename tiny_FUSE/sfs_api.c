@@ -44,10 +44,10 @@ static inline void synch_directory(char *_opt) {
             continue;
         if (!strcmp(_opt, "read")) {
             read_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].pages[i].pageid,
-                        1, &directory_cache[i * (BLOCK_SIZE/sizeof(dirent_t))]);
+                        1, &directory_cache[i * (BLOCK_SIZE / sizeof(dirent_t))]);
         } else {
             write_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].pages[i].pageid,
-                         1, &directory_cache[i * (BLOCK_SIZE/sizeof(dirent_t))]);
+                         1, &directory_cache[i * (BLOCK_SIZE / sizeof(dirent_t))]);
         }
     }
     if (inode_cache[0].index_page.pageid != PGPTR_NULL.pageid) {
@@ -103,14 +103,13 @@ void mksfs(int flag) {
         inode_cache[0].link_cnt = 1;
         inode_cache[0].uid = 0; 
         inode_cache[0].fsize = 0;
-        pageptr_t page_vec[] = {{0, 0},     PGPTR_NULL, PGPTR_NULL, PGPTR_NULL, 
+        pageptr_t page_vec[] = {PGPTR_NULL, PGPTR_NULL, PGPTR_NULL, PGPTR_NULL, 
                                 PGPTR_NULL, PGPTR_NULL, PGPTR_NULL, PGPTR_NULL, 
                                 PGPTR_NULL, PGPTR_NULL, PGPTR_NULL, PGPTR_NULL};
         memcpy(inode_cache[0].pages, page_vec, 12 * sizeof(uint32_t));
         inode_cache[0].index_page = PGPTR_NULL;
         synch_inode(write);
         // bitmap
-        bitmap[0] = 1;
         synch_bitmap(write);
         // directory
         for (int i = 0; i < NUM_DATA_BLOCKS; i++)
@@ -338,9 +337,10 @@ int sfs_fwrite(int fileID, const char *buf, int length) {
             }
             inode_cache[file_open_table[fileID].inode_idx]
                         .pages[nth_page].end = max(pos_in_page + b2w, 
-            inode_cache[file_open_table[fileID].inode_idx].pages[nth_page].end);
+                        inode_cache[file_open_table[fileID].inode_idx]
+                        .pages[nth_page].end);
             to_write = inode_cache[file_open_table[fileID].inode_idx]
-                       .pages[nth_page];
+                                   .pages[nth_page];
         } else {
             if (inode_cache[file_open_table[fileID].inode_idx]
                 .index_page.pageid == PGPTR_NULL.pageid) {
