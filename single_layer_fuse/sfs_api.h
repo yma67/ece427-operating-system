@@ -1,3 +1,13 @@
+/**
+ * Single layer FUSE
+ * Author: Yuxiang Ma
+ *
+ * NOTE
+ * This file is edited under a directory mounted by 
+ * a previous version of Single Layer FUSE!
+ *
+ */
+
 #ifndef SFS_API_H
 #define SFS_API_H
 
@@ -19,10 +29,10 @@
 #define NUM_INODE_BLOCKS 256
 #define NUM_DATA_BLOCKS 4096
 #define NAME_LIM 27
-#define MAXFILENAME NAME_LIM
+#define MAXFILENAME 20
 #define OFFICIAL_LEN 20
 
-// Utility Data structures
+// Common Data structures
 // Inode index
 typedef uint32_t iindex_t;
 
@@ -32,7 +42,7 @@ typedef struct _pageptr_t {
     uint16_t pageid;
 } pageptr_t;
 
-// In disc data structures
+// On disc data structures
 // Directory Entry: 32 Bytes 
 typedef struct _dirent_t {
     char name[NAME_LIM + 1];
@@ -51,7 +61,7 @@ typedef struct _super_block_t {
 // I node
 typedef struct _inode_t {
     uint32_t link_cnt;
-    uint32_t uid;
+    uint32_t eof;
     uint32_t fsize;
     pageptr_t pages[12];
     pageptr_t index_page;
@@ -70,52 +80,38 @@ typedef struct _page_t {
         inode_t inode[BLOCK_SIZE / sizeof(inode_t)];
         // bytemap
         uint8_t is_free[BLOCK_SIZE / sizeof(uint8_t)];
-        // Place holder
-        uint8_t _ph[BLOCK_SIZE / sizeof(uint8_t)];
+        // Place holder 1k24 bytes
+        uint8_t _place_holder[BLOCK_SIZE / sizeof(uint8_t)];
     } content;
 } page_t;
-
-// In memory Data structures
-// File descriptor table
-typedef struct _fopen_entry_t {
-    char fname[NAME_LIM + 1];
-    uint32_t inode_idx;
-    uint32_t read_ptr;
-    uint32_t write_ptr;
-} fopen_entry_t;
-
-// Cache
-fopen_entry_t file_open_table[NUM_DATA_BLOCKS];
-inode_t inode_cache[NUM_DATA_BLOCKS];
-dirent_t directory_cache[NUM_DATA_BLOCKS];
-uint8_t bitmap[NUM_DATA_BLOCKS];
-super_block_t super_block;
 
 // Constant
 static const iindex_t INODE_NULL;
 static const pageptr_t PGPTR_NULL;
 
-// State variables
-static uint32_t num_de_files = 0;
-static uint32_t cur_nth_file = 0;
-
-// Buffer Page
-static page_t page_buf;
-
 // SFS api
-void mksfs(int flags);
-int sfs_fopen(char *name);
-int sfs_fwrite(int fileID, const char *buf, int length);
-int sfs_fread(int fileID, char *buf, int length);
-int sfs_fclose(int fileID);
-int sfs_frseek(int fileID,int loc);
-int sfs_fwseek(int fileID,int loc);
-int sfs_remove(char *file);
-int sfs_getfilesize(const char* path);
-int sfs_getnextfilename(char *fname);
+extern void mksfs(int flags);
+extern int sfs_fopen(char *name);
+extern int sfs_fwrite(int fileID, const char *buf, int length);
+extern int sfs_fread(int fileID, char *buf, int length);
+extern int sfs_fclose(int fileID);
+extern int sfs_frseek(int fileID,int loc);
+extern int sfs_fwseek(int fileID,int loc);
+extern int sfs_remove(char *file);
+extern int sfs_getfilesize(const char *path);
+extern int sfs_getnextfilename(char *fname);
 
-#define sfs_GetFileSize(_fname) sfs_getfilesize(_fname)
-#define sfs_get_next_filename(_fname) sfs_getnextfilename(_fname)
-#define sfs_fseek(_o, _p) (sfs_frseek(_o, _p))
+// To adopt tester
+static inline int sfs_GetFileSize(const char *path) {
+    return sfs_getfilesize(path);
+}
+
+static inline int sfs_get_next_filename(char *path) {
+    return sfs_getnextfilename(path);
+}
+
+static inline int sfs_fseek(int fd, int loc) {
+    return sfs_frseek(fd, loc) || sfs_fwseek(fd, loc);
+}
 
 #endif
