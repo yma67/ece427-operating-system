@@ -96,8 +96,8 @@ static const iindex_t INODE_NULL;
 static const pageptr_t PGPTR_NULL;
 
 // State variables
-static uint32_t num_de_files;
-static uint32_t cur_nth_file;
+static uint32_t num_de_files = 0;
+static uint32_t cur_nth_file = 0;
 
 // Buffer Page
 static page_t page_buf;
