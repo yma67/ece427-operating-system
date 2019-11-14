@@ -1,26 +1,31 @@
 #include "sfs_api.h"
 
+#define min(_a, _b) (_a < _b) ? (_a) : (_b)
+#define max(_a, _b) (_a > _b) ? (_a) : (_b)
+#define synch_bitmap(_opt) _opt##_blocks(NUM_BLOCKS - NUM_DATA_BLOCKS /            \
+                                         (BLOCK_SIZE), NUM_DATA_BLOCKS /           \
+                                         BLOCK_SIZE, bitmap)                       
+#define synch_inode(_opt) _opt##_blocks(1, NUM_INODE_BLOCKS, (void *)inode_cache)
+
+// FUSE state variable and buffer
 static page_t page_buf;
 static uint32_t cur_nth_file = 0;
 static uint32_t num_de_files = 0;
+
+// constant definition
 static const iindex_t INODE_NULL = NUM_DATA_BLOCKS;
 static const pageptr_t PGPTR_NULL = {
     .end = 0,
     .pageid = NUM_DATA_BLOCKS
 };
 
+// in memory datastructure init
 fopen_entry_t file_open_table[NUM_DATA_BLOCKS];
 inode_t inode_cache[NUM_DATA_BLOCKS];
 dirent_t directory_cache[NUM_DATA_BLOCKS];
 uint8_t bitmap[NUM_DATA_BLOCKS];
 super_block_t super_block;
 uint32_t current_file = 0;
-
-#define min(_a, _b) (_a < _b) ? (_a) : (_b)
-#define max(_a, _b) (_a > _b) ? (_a) : (_b)
-#define synch_bitmap(_opt) _opt##_blocks(NUM_BLOCKS - NUM_DATA_BLOCKS /            \
-                                         (BLOCK_SIZE), NUM_DATA_BLOCKS /           \
-                                         BLOCK_SIZE, bitmap)                       
 
 static inline void synch_superblock(char *_opt) { 
     if (!strcmp(_opt, "write")) {
@@ -32,8 +37,6 @@ static inline void synch_superblock(char *_opt) {
         memcpy(&super_block, &page_buf, sizeof(super_block));
     }
 }
-
-#define synch_inode(_opt) _opt##_blocks(1, NUM_INODE_BLOCKS, (void *)inode_cache)
 
 static inline void synch_directory(char *_opt) {
     for (int i = 0; i < 12; i++) { 
@@ -133,6 +136,7 @@ void mksfs(int flag) {
 
 int sfs_fopen(char *name) {
     int is_fexist = 0, file_index = INODE_NULL;
+    memset(&page_buf, 0, sizeof(page_t));
     for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
         if (!strcmp(name, directory_cache[i].name)) {
             is_fexist = 1;
@@ -422,9 +426,9 @@ int sfs_fwrite(int fileID, const char *buf, int length) {
 }
 
 int sfs_fread(int fileID, char *buf, int length) {
-    memset(&page_buf, 0, sizeof(page_t));
     if (file_open_table[fileID].inode_idx == INODE_NULL)
         return 0;
+    memset(&page_buf, 0, sizeof(page_t));
     pageptr_t last_pos = PGPTR_NULL; 
     uint32_t flen = 0;
     if (inode_cache[file_open_table[fileID].inode_idx].index_page.pageid != 
@@ -549,7 +553,8 @@ int sfs_getnextfilename(char *fname) {
     for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
         if (directory_cache[(current_file + i) % NUM_DATA_BLOCKS].inode_index !=
             INODE_NULL) {
-            strcpy(fname, directory_cache[(current_file + i) % NUM_DATA_BLOCKS].name);
+            strcpy(fname, directory_cache[(current_file + i) % NUM_DATA_BLOCKS]
+                   .name);
             current_file = (current_file + i + 1) % NUM_DATA_BLOCKS;
             cur_nth_file += 1;
             return 1;

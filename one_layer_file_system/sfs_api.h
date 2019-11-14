@@ -2,10 +2,10 @@
 #define SFS_API_H
 
 #include <stdint.h>
-#include "disk_emu.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "disk_emu.h"
 
 // Assumption / constrains
 // 1. size of super block is less than the page size
@@ -83,6 +83,10 @@ inode_t inode_cache[NUM_DATA_BLOCKS];
 dirent_t directory_cache[NUM_DATA_BLOCKS];
 uint8_t bitmap[NUM_DATA_BLOCKS];
 super_block_t super_block;
+
+// Constant
+static const iindex_t INODE_NULL;
+static const pageptr_t PGPTR_NULL;
 
 void mksfs(int flags);
 int sfs_fopen(char *name);
