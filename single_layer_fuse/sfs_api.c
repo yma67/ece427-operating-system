@@ -41,11 +41,10 @@ static uint8_t bitmap[NUM_DATA_BLOCKS];
 static super_block_t super_block = {
     .disc_name = "sherry",
     .page_size = BLOCK_SIZE,
-    .file_sys_size = 1 + NUM_DATA_BLOCKS + 
-                     NUM_DATA_BLOCKS / sizeof(inode_t) +
-                     NUM_DATA_BLOCKS / BLOCK_SIZE,
+    .file_sys_size = 1 + NUM_DATA_BLOCKS * sizeof(inode_t) / BLOCK_SIZE +
+                     NUM_DATA_BLOCKS + NUM_DATA_BLOCKS / BLOCK_SIZE,
     .num_data_pages = NUM_DATA_BLOCKS,
-    .num_inode_pages = NUM_DATA_BLOCKS / sizeof(inode_t),
+    .num_inode_pages = NUM_DATA_BLOCKS * sizeof(inode_t) / BLOCK_SIZE,
     .inode_root = 0
 };
 
