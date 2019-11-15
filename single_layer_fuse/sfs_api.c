@@ -210,7 +210,7 @@ int sfs_fopen(char* name) {
             return -1;
         }
         // Find a good inode
-        int empty_inode_idx = 0, empty_dir_idx = PGPTR_NULL.pageid;
+        int empty_inode_idx = 0, empty_dir_idx = INODE_NULL;
         for (int i = 1; (unsigned)i < super_block.num_data_pages; i++) {
             if (inode_cache[i].link_cnt < 1) {
                 empty_inode_idx = i;
@@ -225,7 +225,7 @@ int sfs_fopen(char* name) {
             }
         }
         // if no good inode, then max no. file reached
-        if (empty_dir_idx == PGPTR_NULL.pageid || empty_inode_idx == 0) {
+        if (empty_dir_idx == INODE_NULL || empty_inode_idx == 0) {
             perror("File Num overflow\n");
             return -1;
         }
