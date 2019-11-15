@@ -17,22 +17,24 @@
 #include <string.h>
 #include "disk_emu.h"
 
-// Assumption / constrains
-// 1. size of super block is less than the page size
-// 2. page size is divisible by size of i node
-// 3. data page have no extra bits
-// 4. bitmap fits within one page 
-// 5. assumption as numerical values are as follows
+/**
+ * Assumption / constrains
+ * 1. size of super block is less than the page size
+ * 2. page size is divisible by size of i node
+ * 3. data page have no extra bits
+ * 4. bitmap fits within one page 
+ */
+
 #define DISC_NAME "sherry"
 #define BLOCK_SIZE 1024
-#define NUM_BLOCKS 4356
-#define NUM_INODE_BLOCKS 256
 #define NUM_DATA_BLOCKS 4096
-#define NAME_LIM 27
 #define MAXFILENAME 20
-#define OFFICIAL_LEN 20
+#define FILELEN 28
 
-// Common Data structures
+/**
+ * Common Data structures
+ */
+
 // Inode index
 typedef uint32_t iindex_t;
 
@@ -42,19 +44,24 @@ typedef struct _pageptr_t {
     uint16_t pageid;
 } pageptr_t;
 
-// On disc data structures
+
+/**
+ * On disc data structures
+ */
+
 // Directory Entry: 32 Bytes 
 typedef struct _dirent_t {
-    char name[NAME_LIM + 1];
+    char name[FILELEN];
     iindex_t inode_index;
 } dirent_t;
 
 // Super Block
 typedef struct _super_block_t {
-    uint32_t magic_number;
+    char disc_name[FILELEN];
     uint32_t page_size;
     uint32_t file_sys_size;
     uint32_t num_data_pages;
+    uint32_t num_inode_pages;
     iindex_t inode_root;
 } super_block_t;
 
@@ -85,11 +92,19 @@ typedef struct _page_t {
     } content;
 } page_t;
 
-// Constant
+
+/**
+ * Constant
+ */
+
 static const iindex_t INODE_NULL;
 static const pageptr_t PGPTR_NULL;
 
-// SFS api
+
+/**
+ * SFS api
+ */
+
 extern void mksfs(int flags);
 extern int sfs_fopen(char *name);
 extern int sfs_fwrite(int fileID, const char *buf, int length);
@@ -101,7 +116,11 @@ extern int sfs_remove(char *file);
 extern int sfs_getfilesize(const char *path);
 extern int sfs_getnextfilename(char *fname);
 
-// To adopt tester
+
+/**
+ * To adopt tester
+ */
+
 static inline int sfs_GetFileSize(const char *path) {
     return sfs_getfilesize(path);
 }

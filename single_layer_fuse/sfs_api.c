@@ -10,18 +10,26 @@
 
 #include "sfs_api.h"
 
-// In memory data structure
+/**
+ * In memory data structure
+ */
+
 // File descriptor table entry
 typedef struct _fopen_entry_t {
-    char fname[NAME_LIM + 1];
+    char fname[FILELEN];
     uint32_t inode_idx;
     uint32_t read_ptr;
     uint32_t write_ptr;
 } fopen_entry_t;
+
 // File descriptor table
 static fopen_entry_t file_open_table[NUM_DATA_BLOCKS];
 
-// Cache
+
+/** 
+ * Cache
+ */
+
 // All I-Node cache
 static inode_t inode_cache[NUM_DATA_BLOCKS];
 // All Directory Entry cache
@@ -30,9 +38,22 @@ static dirent_t directory_cache[NUM_DATA_BLOCKS];
 // sequential read is cheap, therefore no worries
 static uint8_t bitmap[NUM_DATA_BLOCKS];
 // Super Block cache
-static super_block_t super_block;
+static super_block_t super_block = {
+    .disc_name = "sherry",
+    .page_size = BLOCK_SIZE,
+    .file_sys_size = 1 + NUM_DATA_BLOCKS + 
+                     NUM_DATA_BLOCKS / sizeof(inode_t) +
+                     NUM_DATA_BLOCKS / BLOCK_SIZE,
+    .num_data_pages = NUM_DATA_BLOCKS,
+    .num_inode_pages = NUM_DATA_BLOCKS / sizeof(inode_t),
+    .inode_root = 0
+};
 
-// State variables
+
+/**
+ * State variables
+ */
+
 // Directory Walker
 static uint32_t num_de_files = 0;
 static uint32_t cur_nth_file = 0;
@@ -47,36 +68,48 @@ static const pageptr_t PGPTR_NULL = {
     .pageid = NUM_DATA_BLOCKS
 };
 
-// Utility macro
+
+/** 
+ * Utility macro
+ */
+
 #define MIN(_a, _b) (_a < _b) ? (_a) : (_b)
 #define MAX(_a, _b) (_a > _b) ? (_a) : (_b)
 
-// Cache synchronization helper
+
+/**
+ * Cache synchronization helper
+ */
+
 // invoke avec helper(read) or helper(write)
 // inode cache sync: 1 random read + ? sequencial read
-#define SYNCH_INODE(_opt) _opt##_blocks(1, NUM_INODE_BLOCKS, inode_cache)
+#define SYNCH_INODE(_opt) _opt##_blocks(1, super_block.num_inode_pages,           \
+                                        inode_cache)
 // superblock cache sync: 1 random read
 #define SYNCH_SUPERBLOCK(_opt) _opt##_blocks(0, 1, &super_block)
 // bitmap cache sync: 1 random read followed by 3 sequencial reads
-#define SYNCH_BITMAP(_opt) _opt##_blocks(NUM_BLOCKS - NUM_DATA_BLOCKS /           \
-                                         (BLOCK_SIZE), NUM_DATA_BLOCKS /          \
-                                         BLOCK_SIZE, bitmap)                       
+#define SYNCH_BITMAP(_opt) _opt##_blocks(super_block.file_sys_size -              \
+                                         super_block.num_data_pages /             \
+                                         super_block.page_size,                   \
+                                         super_block.num_data_pages /             \
+                                         super_block.page_size, bitmap)                       
 // directory sync: multiple random reads
 #define SYNCH_DIRECTORY(_opt) {                                                   \
     memset(&page_buf, 0, sizeof(page_t));                                         \
     for (int i = 0; i < 12; i++) {                                                \
         if (inode_cache[0].pages[i].pageid == PGPTR_NULL.pageid)                  \
             continue;                                                             \
-        _opt##_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].pages[i].pageid,      \
+        _opt##_blocks(1 + super_block.num_inode_pages +                           \
+                      inode_cache[0].pages[i].pageid,                             \
                       1, &directory_cache[i * (BLOCK_SIZE / sizeof(dirent_t))]);  \
     }                                                                             \
     if (inode_cache[0].index_page.pageid != PGPTR_NULL.pageid) {                  \
-        read_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].index_page.pageid,      \
-                    1, &page_buf);                                                \
+        read_blocks(1 + super_block.num_inode_pages +                             \
+                    inode_cache[0].index_page.pageid, 1, &page_buf);              \
         for (int i = 0; (unsigned)i < (BLOCK_SIZE / sizeof(pageptr_t)); i++) {    \
             if (page_buf.content.index[i].pageid == PGPTR_NULL.pageid)            \
                 continue;                                                         \
-            _opt##_blocks(1 + NUM_INODE_BLOCKS +                                  \
+            _opt##_blocks(1 + super_block.num_inode_pages +                       \
                           page_buf.content.index[i].pageid, 1,                    \
                           &directory_cache[(12 + i) *                             \
                           (BLOCK_SIZE / sizeof(dirent_t))]);                      \
@@ -87,7 +120,7 @@ static const pageptr_t PGPTR_NULL = {
 static inline uint16_t dalloc() { 
     SYNCH_BITMAP(read); 
     uint32_t first_free = 0;
-    for (int i = 1; i < NUM_DATA_BLOCKS; i++) {
+    for (int i = 1; (unsigned)i < super_block.num_data_pages; i++) {
         if (bitmap[i] == 0) {
             first_free = i;
             break;
@@ -106,7 +139,7 @@ static inline uint32_t calc_fsize(int fd) {
     uint32_t byte_count = 0;
     if (inode_cache[file_open_table[fd].inode_idx].index_page.pageid != 
         PGPTR_NULL.pageid) {
-        read_blocks(1 + NUM_INODE_BLOCKS + 
+        read_blocks(1 + super_block.num_inode_pages + 
                     inode_cache[file_open_table[fd].inode_idx]
                     .index_page.pageid, 1, &page_buf);
         for (int i = (BLOCK_SIZE) / sizeof(pageptr_t) - 1; i > -1; i--) 
@@ -123,13 +156,9 @@ static inline uint32_t calc_fsize(int fd) {
 
 void mksfs(int flag) {
     if (flag) {
-        init_fresh_disk(DISC_NAME, BLOCK_SIZE, NUM_BLOCKS);
+        init_fresh_disk(super_block.disc_name, 
+                        super_block.page_size, super_block.file_sys_size);
         // super block
-        super_block.magic_number = 0xACBD0005;
-        super_block.page_size = BLOCK_SIZE;
-        super_block.file_sys_size = NUM_BLOCKS;
-        super_block.num_data_pages = NUM_DATA_BLOCKS;
-        super_block.inode_root = 0;
         SYNCH_SUPERBLOCK(write);
         // i node
         inode_cache[0].link_cnt = 1;
@@ -144,19 +173,20 @@ void mksfs(int flag) {
         // bitmap
         SYNCH_BITMAP(write);
         // directory
-        for (int i = 0; i < NUM_DATA_BLOCKS; i++)
+        for (int i = 0; (unsigned)i < super_block.num_data_pages; i++)
             directory_cache[i].inode_index = INODE_NULL;
         SYNCH_DIRECTORY(write);
         // File Open Table
-        for (int i = 0; i < NUM_DATA_BLOCKS; i++)
+        for (int i = 0; (unsigned)i < super_block.num_data_pages; i++)
             file_open_table[i].inode_idx = INODE_NULL;
     } else {
-        init_disk(DISC_NAME, BLOCK_SIZE, NUM_BLOCKS);
+        init_disk(super_block.disc_name, super_block.page_size, 
+                  super_block.file_sys_size);
         // File Open Table 
-        for (int i = 0; i < NUM_DATA_BLOCKS; i++)
+        for (int i = 0; (unsigned)i < super_block.num_data_pages; i++)
             file_open_table[i].inode_idx = INODE_NULL;
         // initiallize directories
-        for (int i = 0; i < NUM_DATA_BLOCKS; i++)
+        for (int i = 0; (unsigned)i < super_block.num_data_pages; i++)
             directory_cache[i].inode_index = INODE_NULL;
         SYNCH_SUPERBLOCK(read);
         SYNCH_INODE(read);
@@ -168,7 +198,7 @@ void mksfs(int flag) {
 int sfs_fopen(char* name) {
     int is_fexist = 0, file_index = INODE_NULL;
     memset(&page_buf, 0, sizeof(page_t));
-    for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
+    for (int i = 0; (unsigned)i < super_block.num_data_pages; i++) {
         if (!strcmp(name, directory_cache[i].name)) {
             is_fexist = 1;
             file_index = i;
@@ -177,19 +207,19 @@ int sfs_fopen(char* name) {
     }
     // make new file
     if (!is_fexist) {
-        if (strlen(name) > OFFICIAL_LEN) {
+        if (strlen(name) > MAXFILENAME) {
             return -1;
         }
         // Find a good inode
         int empty_inode_idx = 0, empty_dir_idx = PGPTR_NULL.pageid;
-        for (int i = 1; i < NUM_DATA_BLOCKS; i++) {
+        for (int i = 1; (unsigned)i < super_block.num_data_pages; i++) {
             if (inode_cache[i].link_cnt < 1) {
                 empty_inode_idx = i;
                 break;
             }
         }
         // Find a good directory entry
-        for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
+        for (int i = 0; (unsigned)i < super_block.num_data_pages; i++) {
             if (directory_cache[i].inode_index == INODE_NULL) {
                 empty_dir_idx = i;
                 break;
@@ -238,17 +268,17 @@ int sfs_fopen(char* name) {
                     return -1;
                 }
                 // mark page pointer to null
-                read_blocks(1 + NUM_INODE_BLOCKS + 
+                read_blocks(1 + super_block.num_inode_pages + 
                             inode_cache[0].index_page.pageid, 1, &page_buf);
                 for (int i = 0; (unsigned)i < (BLOCK_SIZE/sizeof(pageptr_t)); i++)
                     page_buf.content.index[i] = PGPTR_NULL;
                 // write initiallized index page to disc
-                write_blocks(1 + NUM_INODE_BLOCKS + 
+                write_blocks(1 + super_block.num_inode_pages + 
                              inode_cache[0].index_page.pageid, 1, &page_buf);
             }
             // read original index page from disc
-            read_blocks(1 + NUM_INODE_BLOCKS + inode_cache[0].index_page.pageid, 
-                        1, &page_buf);
+            read_blocks(1 + super_block.num_inode_pages + 
+                        inode_cache[0].index_page.pageid, 1, &page_buf);
             // if corresponding page pointer is null, allocate new page
             if (page_buf.content.index[empty_dir_idx / ent_per_page].pageid == 
                 PGPTR_NULL.pageid) { 
@@ -263,7 +293,7 @@ int sfs_fopen(char* name) {
                                     (ent_per_page) + i].inode_index = INODE_NULL;
             }
             // write updated index page to disc
-            write_blocks(1 + NUM_INODE_BLOCKS + 
+            write_blocks(1 + super_block.num_inode_pages + 
                          inode_cache[0].index_page.pageid, 1, &page_buf);
         }
         // update directory cache and write to disc
@@ -275,7 +305,7 @@ int sfs_fopen(char* name) {
         SYNCH_BITMAP(write);
     } else {
         // if file opened, return its fd
-        for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
+        for (int i = 0; (unsigned)i < super_block.num_data_pages; i++) {
             if (!strcmp(file_open_table[i].fname, name)) {
                 return i;
             }
@@ -284,7 +314,7 @@ int sfs_fopen(char* name) {
     int empty_fopen_index = INODE_NULL;
     file_index = INODE_NULL;
     // find a slot in file descriptor table
-    for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
+    for (int i = 0; (unsigned)i < super_block.num_data_pages; i++) {
         if (file_open_table[i].inode_idx == INODE_NULL) {
             empty_fopen_index = i;
             break;
@@ -296,7 +326,7 @@ int sfs_fopen(char* name) {
         return -1;
     }
     // find a slot in directory
-    for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
+    for (int i = 0; (unsigned)i < super_block.num_data_pages; i++) {
         if (!strcmp(directory_cache[i].name, name)) {
             file_index = i;
             break;
@@ -357,13 +387,13 @@ int sfs_fwrite(int fileID, const char* buf, int length) {
                     break;
                 for (int i = 0; (unsigned)i < (BLOCK_SIZE/sizeof(pageptr_t)); i++)
                     page_buf.content.index[i] = PGPTR_NULL;
-                rc = write_blocks(1 + NUM_INODE_BLOCKS + 
+                rc = write_blocks(1 + super_block.num_inode_pages + 
                                   inode_cache[file_open_table[fileID].inode_idx]
                                   .index_page.pageid, 1, &page_buf);
                 if (rc != 1) 
                     break;
             }
-            rc = read_blocks(1 + NUM_INODE_BLOCKS +
+            rc = read_blocks(1 + super_block.num_inode_pages +
                              inode_cache[file_open_table[fileID].inode_idx]
                              .index_page.pageid, 1, &page_buf);
             if (rc != 1) 
@@ -379,18 +409,18 @@ int sfs_fwrite(int fileID, const char* buf, int length) {
                                                             page_buf.content
                                                             .index[nth_page - 12]
                                                             .end);
-            rc = write_blocks(1 + NUM_INODE_BLOCKS +  
+            rc = write_blocks(1 + super_block.num_inode_pages +  
                               inode_cache[file_open_table[fileID].inode_idx]
                               .index_page.pageid, 1, &page_buf);
             if (rc != 1) 
                 break;
             to_write = page_buf.content.index[nth_page - 12];
         }
-        rc = read_blocks(1 + NUM_INODE_BLOCKS + to_write.pageid, 1, &page_buf);
+        rc = read_blocks(1 + super_block.num_inode_pages + to_write.pageid, 1, &page_buf);
         if (rc != 1) 
             break;
         memcpy(&(page_buf.content.data[pos_in_page]), buf + byte_written, b2w);
-        rc = write_blocks(1 + NUM_INODE_BLOCKS + to_write.pageid, 1, &page_buf);
+        rc = write_blocks(1 + super_block.num_inode_pages + to_write.pageid, 1, &page_buf);
         if (rc != 1) 
             break;
         byte_written += b2w;
@@ -433,7 +463,7 @@ int sfs_fread(int fileID, char* buf, int length) {
                 memset(buf + byte_read, 0, b2r * sizeof(char));
                 goto FINISH_READ;
             }
-            read_blocks(1 + NUM_INODE_BLOCKS +
+            read_blocks(1 + super_block.num_inode_pages +
                         inode_cache[file_open_table[fileID].inode_idx].index_page
                         .pageid, 1, &page_buf);
             if (page_buf.content.index[nth_page - 12].pageid == 
@@ -443,7 +473,7 @@ int sfs_fread(int fileID, char* buf, int length) {
             }
             to_read = page_buf.content.index[nth_page - 12];
         }
-        read_blocks(1 + NUM_INODE_BLOCKS + to_read.pageid, 1, &page_buf);
+        read_blocks(1 + super_block.num_inode_pages + to_read.pageid, 1, &page_buf);
         memcpy(buf + byte_read, (&page_buf.content.data[pos_in_page]), b2r);
 FINISH_READ:
         byte_read += b2r;
@@ -484,9 +514,9 @@ int sfs_fwseek(int fileID, int loc) {
 }
 
 int sfs_remove(char* file) {
-    for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
+    for (int i = 0; (unsigned)i < super_block.num_data_pages; i++) {
         if (!strcmp(directory_cache[i].name, file)) {
-            for (int j = 0; j < NUM_DATA_BLOCKS; j++) 
+            for (int j = 0; (unsigned)j < super_block.num_data_pages; j++) 
                 if (!strcmp(file, file_open_table[j].fname)) 
                     sfs_fclose(j);
             memset(&inode_cache[directory_cache[i].inode_index], 0, 
@@ -507,11 +537,13 @@ int sfs_getnextfilename(char* fname) {
         cur_nth_file = 0;
         return 0;
     }
-    for (int i = 0; i < NUM_DATA_BLOCKS; i++) {
-        if (directory_cache[(current_file + i) % NUM_DATA_BLOCKS].inode_index !=
-            INODE_NULL) {
-            strcpy(fname, directory_cache[(current_file + i) % NUM_DATA_BLOCKS].name);
-            current_file = (current_file + i + 1) % NUM_DATA_BLOCKS;
+    for (int i = 0; (unsigned)i < super_block.num_data_pages; i++) {
+        if (directory_cache[(current_file + i) % 
+            super_block.num_data_pages].inode_index != INODE_NULL) {
+            strcpy(fname, directory_cache[(current_file + i) % 
+                   super_block.num_data_pages].name);
+            current_file = (current_file + i + 1) % 
+                           super_block.num_data_pages;
             cur_nth_file += 1;
             return 1;
         }
@@ -520,7 +552,7 @@ int sfs_getnextfilename(char* fname) {
 }
 
 int sfs_getfilesize(const char* path) {
-    for (int i = 0; i < NUM_DATA_BLOCKS; i++) 
+    for (int i = 0; (unsigned)i < super_block.num_data_pages; i++) 
         if (!strcmp(path, directory_cache[i].name)) 
             return inode_cache[directory_cache[i].inode_index].fsize;
     return -1;
