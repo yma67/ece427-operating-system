@@ -119,7 +119,7 @@ static const pageptr_t PGPTR_NULL = {
 static inline uint16_t dalloc() { 
     SYNCH_BITMAP(read); 
     uint32_t first_free = 0;
-    for (int i = 1; (unsigned)i < super_block.num_data_pages; i++) {
+    for (int i = 0; (unsigned)i < super_block.num_data_pages; i++) {
         if (bitmap[i] == 0) {
             first_free = i;
             break;
@@ -129,6 +129,9 @@ static inline uint16_t dalloc() {
         perror("Disc Full\n"); 
         return INODE_NULL; 
     } 
+    memset(&page_buf, 0, sizeof(page_t));
+    write_blocks(1 + super_block.num_inode_pages + first_free, 
+                 1, &page_buf);
     bitmap[first_free] = 1; 
     SYNCH_BITMAP(write); 
     return first_free;
