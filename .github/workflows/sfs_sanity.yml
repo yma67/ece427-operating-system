@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: SFS Sanity Test 1
 
 on: [push]
 
