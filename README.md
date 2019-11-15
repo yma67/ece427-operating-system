@@ -1,6 +1,10 @@
 ### ECE427 Operating System
 ###### Made available under ```the Wang Licence (GPL)```
 
+#### Single Layer FUSE
+![](https://github.com/yma67/ece427-operating-system/workflows/SFS%20Sanity%20Test%201/badge.svg)
+
+
 #### Tiny Shell
 ##### Compile and execute
 - to enable print of prompt
