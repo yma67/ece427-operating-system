@@ -1,4 +1,4 @@
-name: SFS_Sanity_1
+name: SFS Sanity Test 1
 
 on: [push]
 
