@@ -39,7 +39,7 @@ static dirent_t directory_cache[NUM_DATA_BLOCKS];
 static uint8_t bitmap[NUM_DATA_BLOCKS];
 // Super Block cache
 static super_block_t super_block = {
-    .disc_name = "sherry",
+    .disc_name = DISC_NAME,
     .page_size = BLOCK_SIZE,
     .file_sys_size = 1 + NUM_DATA_BLOCKS * sizeof(inode_t) / BLOCK_SIZE +
                      NUM_DATA_BLOCKS + NUM_DATA_BLOCKS / BLOCK_SIZE,
