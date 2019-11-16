@@ -520,7 +520,7 @@ int sfs_remove(char* file) {
         if (!strcmp(directory_cache[i].name, file)) {
             for (int j = 0; (unsigned)j < super_block.num_data_pages; j++) 
                 if (!strcmp(file, file_open_table[j].fname)) 
-                    sfs_fclose(j);
+                    return -1;
             memset(&inode_cache[directory_cache[i].inode_index], 0, 
                    sizeof(inode_t));
             memset(&directory_cache[i], 0, sizeof(dirent_t));
