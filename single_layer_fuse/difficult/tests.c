@@ -98,7 +98,7 @@ int test_read_all_files(int *file_id, int *file_size, char **write_buf, int num_
     if(strcmp(buf, write_buf[i]) != 0){
       fprintf(stderr, "Error: \nRead failed.\n\n");
       *err_no += 1;
-      printf("%d %d %d\n", strlen(buf), strlen(write_buf[i]), file_size[i]);
+      printf("%d\n****%s\n####%s\n %d %d %d\n", i, buf, write_buf[i], strlen(buf), strlen(write_buf[i]), file_size[i]);
     }
   }
   free(buf);

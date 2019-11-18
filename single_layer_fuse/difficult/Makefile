@@ -2,7 +2,7 @@
 # To compile with test1, make test1
 # To compile with test2, make test2
 
-CC = clang -g -Wall
+CC = gcc -g -Wall
 LDFLAGS = `pkg-config fuse --cflags --libs`
 EXECUTABLE=sfs
 
