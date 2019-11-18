@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "sfs_api.h"
 
 /* The maximum file name length. We assume that filenames can contain
@@ -425,5 +424,8 @@ main(int argc, char **argv)
   }
  
   fprintf(stderr, "Test program exiting with %d errors\n", error_count);
+  
+  fprintf(stdout, "Sanity II: Hard\n");
+  
   return (error_count);
 }
