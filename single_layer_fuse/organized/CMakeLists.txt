@@ -4,7 +4,7 @@ project(mountable_simple_file_system)
 # Debug Mode
 set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_C_FLAGS_DEBUG "-std=gnu99 ${CMAKE_C_FLAGS_DEBUG} -Wall")
-message(STATUS "c compiler flags: " ${CMAKE_C_FLAGS_DEBUG})
+message(STATUS "Verify C compiler flags: " ${CMAKE_C_FLAGS_DEBUG})
 
 # Find Package FUSE
 find_package(PkgConfig)
