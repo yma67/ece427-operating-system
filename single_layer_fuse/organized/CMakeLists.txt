@@ -1,8 +1,10 @@
-cmake_minimum_required(VERSION 3.11.4)
+cmake_minimum_required(VERSION 3.11)
 project(mountable_simple_file_system)
 
+# Debug Mode
 set(CMAKE_BUILD_TYPE "Debug")
-set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -g -Wall")
+set(CMAKE_C_FLAGS_DEBUG "-std=gnu99 ${CMAKE_C_FLAGS_DEBUG} -Wall")
+message(STATUS "c compiler flags: " ${CMAKE_C_FLAGS_DEBUG})
 
 # Find Package FUSE
 find_package(PkgConfig)
