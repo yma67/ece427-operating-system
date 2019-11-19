@@ -2,12 +2,14 @@ cmake_minimum_required(VERSION 3.11)
 
 project(mountable_simple_file_system)
 
+# Debug Mode
 set(CMAKE_BUILD_TYPE "Debug")
-set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -g -Wall")
+set(CMAKE_C_FLAGS_DEBUG "-std=gnu99 ${CMAKE_C_FLAGS_DEBUG} -Wall")
+message(STATUS "Verify C compiler flags: " ${CMAKE_C_FLAGS_DEBUG})
 
+# MSFS Dependency 
 find_package(PkgConfig)
 pkg_check_modules(FUSE "fuse")
-
 include_directories(${PROJECT_SOURCE_DIR})
 
 # Sanity tests
