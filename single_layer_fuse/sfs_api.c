@@ -486,6 +486,8 @@ FINISH_READ:
 }
 
 int sfs_fclose(int fileID) {
+    if (fileID < 0 || fileID > (signed)super_block.num_data_pages - 1)
+        return -1;
     if (file_open_table[fileID].inode_idx != INODE_NULL) {
         memset(&file_open_table[fileID], 0, sizeof(fopen_entry_t));
         file_open_table[fileID].inode_idx = INODE_NULL;
@@ -495,6 +497,8 @@ int sfs_fclose(int fileID) {
 }
 
 int sfs_frseek(int fileID, int loc) {
+    if (fileID < 0 || fileID > (signed)super_block.num_data_pages - 1)
+        return -1;
     if (file_open_table[fileID].inode_idx != INODE_NULL) {
         if (loc < 0 || (unsigned)loc > 
             inode_cache[file_open_table[fileID].inode_idx].eof)
@@ -506,6 +510,8 @@ int sfs_frseek(int fileID, int loc) {
 }
 
 int sfs_fwseek(int fileID, int loc) {
+    if (fileID < 0 || fileID > (signed)super_block.num_data_pages - 1)
+        return -1;
     if (file_open_table[fileID].inode_idx != INODE_NULL && 
         0 <= loc && (unsigned)loc <= 
         BLOCK_SIZE * (12 + BLOCK_SIZE / sizeof(pageptr_t))) {

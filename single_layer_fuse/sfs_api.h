@@ -27,7 +27,7 @@
 
 #define DISC_NAME "sherry"
 #define BLOCK_SIZE 1024
-#define NUM_DATA_BLOCKS 4096
+#define NUM_DATA_BLOCKS 1024
 #define MAXFILENAME 20
 #define FILELEN 28
 
@@ -127,10 +127,6 @@ static inline int sfs_GetFileSize(const char *path) {
 
 static inline int sfs_get_next_filename(char *path) {
     return sfs_getnextfilename(path);
-}
-
-static inline int sfs_fseek(int fd, int loc) {
-    return sfs_frseek(fd, loc) || sfs_fwseek(fd, loc);
 }
 
 #endif

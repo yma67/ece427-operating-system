@@ -18,7 +18,7 @@
  * do not _require_ that you support this many files. This is just to
  * test the behavior of your code.
  */
-#define MAX_FD 100 
+#define MAX_FD 100
 
 /* The maximum number of bytes we'll try to write to a file. If you
  * support much shorter or larger files for some reason, feel free to
@@ -30,6 +30,9 @@
 /* Just a random test string.
  */
 static char test_str[] = "The quick brown fox jumps over the lazy dog.\n";
+static char rick_and_morty[] = "To b fair, you have to have a very high IQ to understand Rick and Morty.";
+static char ok_boomer[] = "Ok boomer";
+static char modified_pasta[] = "Ok boomer, you have to have a very high IQ to understand Rick and Morty.";
 
 /* rand_name() - return a randomly-generated, but legal, file name.
  *
@@ -124,7 +127,7 @@ main(int argc, char **argv)
       }
       tmp = sfs_fwrite(fds[i], buffer, chunksize);
       if (tmp != chunksize) {
-        fprintf(stderr, "ERROR: Tried to write %d bytes, but wrote %d\n", 
+        fprintf(stderr, "ERROR: Tried to write %d bytes, but wrote %d\n",
                 chunksize, tmp);
         error_count++;
       }
@@ -146,7 +149,7 @@ main(int argc, char **argv)
   printf("File %s now has length %d and %s now has length %d:\n",
          names[0], filesize[0], names[1], filesize[1]);
 
-  /* Just to be cruel - attempt to read from a closed file handle. 
+  /* Just to be cruel - attempt to read from a closed file handle.
    */
   if (sfs_fread(fds[1], fixedbuf, sizeof(fixedbuf)) > 0) {
     fprintf(stderr, "ERROR: read from a closed file handle?\n");
@@ -154,10 +157,10 @@ main(int argc, char **argv)
   }
 
   fds[1] = sfs_fopen(names[1]);
-  
-  sfs_fseek(0, 0);
-  sfs_fseek(1, 0);
-  
+
+  sfs_frseek(0, 0);
+  sfs_frseek(1, 0);
+
   for (i = 0; i < 2; i++) {
     for (j = 0; j < filesize[i]; j += chunksize) {
       if ((filesize[i] - j) < 10) {
@@ -188,6 +191,67 @@ main(int argc, char **argv)
     }
   }
 
+  /*
+   * Test read and write pointers
+   */
+  for (i = 0; i < 2; i++) {
+    // first, set both read and write pointers to byte 0
+    sfs_frseek(fds[i], 0);
+    sfs_fwseek(fds[i], 0);
+
+    // write content to file and verify
+    tmp = sfs_fwrite(fds[i], rick_and_morty, strlen(rick_and_morty));
+    if (tmp != strlen(rick_and_morty)) {
+        fprintf(stderr, "ERROR: Tried to write a copypasta with %d bytes, "
+                  "but only %d bytes written\n",
+                  (int)strlen(rick_and_morty), tmp);
+      error_count++;
+    } else {
+      buffer = malloc(strlen(rick_and_morty)+10);
+      memset(buffer, 0, (strlen(rick_and_morty)+10)*sizeof(char));
+      if ((readsize = sfs_fread(fds[i], buffer, tmp)) != tmp) {
+        fprintf(stderr, "ERROR: My copypasta has %d bytes, but only %d bytes read\n",
+                  (int)strlen(rick_and_morty), readsize);
+        error_count++;
+      } else {
+        if (strcmp(buffer, rick_and_morty) != 0) {
+          fprintf(stderr, "ERROR: File content is not the same, "
+                    "was expecting Rick and Morty copypasta\n");
+          error_count++;
+        }
+      }
+      free(buffer);
+    }
+
+    // reset read and write pointers to byte 0
+    sfs_frseek(fds[i], 0);
+    sfs_fwseek(fds[i], 0);
+
+    // overwrite content from byte 0 and verify
+    tmp = sfs_fwrite(fds[i], ok_boomer, strlen(ok_boomer));
+    if (tmp != strlen(ok_boomer)) {
+      fprintf(stderr, "ERROR: Tried to write %d bytes, got %d bytes\n",
+                (int)strlen(ok_boomer), tmp);
+      error_count++;
+    } else {
+      tmp = (int)strlen(modified_pasta);
+      buffer = malloc(tmp+10);
+      memset(buffer, 0, (tmp+10)*sizeof(char));
+      if ((readsize = sfs_fread(fds[i], buffer, tmp)) != tmp) {
+        fprintf(stderr, "ERROR: Expected to read %d bytes, got %d instead\n",
+                  tmp, readsize);
+        error_count++;
+      } else {
+        if (strcmp(buffer, modified_pasta) != 0) {
+          fprintf(stderr, "ERROR: Copypasta is not modified correctly, "
+                    "was expecting 'Ok boomer' at the beginning\n");
+          error_count++;
+        }
+      }
+      free(buffer);
+    }
+  }
+
   for (i = 0; i < 2; i++) {
     if (sfs_fclose(fds[i]) != 0) {
       fprintf(stderr, "ERROR: closing file %s\n", names[i]);
@@ -203,6 +267,7 @@ main(int argc, char **argv)
     if (sfs_fclose(fds[i]) == 0) {
       fprintf(stderr, "Warning: closing already closed file %s\n", names[i]);
     }
+    sfs_remove(names[i]);
   }
 
   /* Now just try to open up a bunch of files.
@@ -233,7 +298,7 @@ main(int argc, char **argv)
   for (i = 0; i < nopen; i++) {
     tmp = sfs_fwrite(fds[i], test_str, strlen(test_str));
     if (tmp != strlen(test_str)) {
-      fprintf(stderr, "ERROR: Tried to write %d, returned %d\n", 
+      fprintf(stderr, "ERROR: Tried to write %d, returned %d\n",
               (int)strlen(test_str), tmp);
       error_count++;
     }
@@ -254,7 +319,7 @@ main(int argc, char **argv)
   /* Now test the file contents.
    */
   for (i = 0; i < nopen; i++) {
-      sfs_fseek(fds[i], 0);
+      sfs_frseek(fds[i], 0);
   }
 
   for (j = 0; j < strlen(test_str); j++) {
@@ -266,7 +331,7 @@ main(int argc, char **argv)
         error_count++;
       }
       if (ch != test_str[j]) {
-        fprintf(stderr, "ERROR: Read wrong byte from %s at %d (%d,%d)\n", 
+        fprintf(stderr, "ERROR: Read wrong byte from %s at %d (%d,%d)\n",
                 names[i], j, ch, test_str[j]);
         error_count++;
         break;
@@ -289,7 +354,7 @@ main(int argc, char **argv)
 
   for (i = 0; i < nopen; i++) {
     fds[i] = sfs_fopen(names[i]);
-    sfs_fseek(fds[i], 0);
+    sfs_frseek(fds[i], 0);
     if (fds[i] >= 0) {
       readsize = sfs_fread(fds[i], fixedbuf, sizeof(fixedbuf));
       if (readsize != strlen(test_str)) {
@@ -352,7 +417,7 @@ main(int argc, char **argv)
    */
   for (i = 0; i < nopen; i++) {
     fds[i] = sfs_fopen(names[i]);
-    sfs_fseek(fds[i], 0);
+    sfs_frseek(fds[i], 0);
     if (fds[i] >= 0) {
       readsize = sfs_fread(fds[i], fixedbuf, sizeof(fixedbuf));
       if (readsize < strlen(test_str)) {
