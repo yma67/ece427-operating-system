@@ -1,0 +1,5 @@
+/home/yuxma/ws/ece427/ece427-operating-system/single_layer_fuse/unorganized/build/CMakeFiles/rebuild_cache.dir
+/home/yuxma/ws/ece427/ece427-operating-system/single_layer_fuse/unorganized/build/CMakeFiles/edit_cache.dir
+/home/yuxma/ws/ece427/ece427-operating-system/single_layer_fuse/unorganized/build/CMakeFiles/mount.dir
+/home/yuxma/ws/ece427/ece427-operating-system/single_layer_fuse/unorganized/build/CMakeFiles/sanity1.dir
+/home/yuxma/ws/ece427/ece427-operating-system/single_layer_fuse/unorganized/build/CMakeFiles/sanity2.dir

@@ -27,7 +27,7 @@
 
 #define DISC_NAME "sherry"
 #define BLOCK_SIZE 1024
-#define NUM_DATA_BLOCKS 1024
+#define NUM_DATA_BLOCKS 4096
 #define MAXFILENAME 20
 #define FILELEN 28
 

@@ -59,6 +59,7 @@ static uint32_t cur_nth_file = 0;
 static uint32_t current_file = 0;
 // Page Buffer
 static page_t page_buf;
+static page_t zeros;
 
 // constant definition
 static const iindex_t INODE_NULL = NUM_DATA_BLOCKS;
@@ -118,7 +119,7 @@ static const pageptr_t PGPTR_NULL = {
 
 static inline uint16_t dalloc() { 
     SYNCH_BITMAP(read); 
-    uint32_t first_free = 0;
+    uint32_t first_free = PGPTR_NULL.pageid;
     for (int i = 0; (unsigned)i < super_block.num_data_pages; i++) {
         if (bitmap[i] == 0) {
             first_free = i;
@@ -129,9 +130,6 @@ static inline uint16_t dalloc() {
         perror("Disc Full\n"); 
         return INODE_NULL; 
     } 
-    memset(&page_buf, 0, sizeof(page_t));
-    write_blocks(1 + super_block.num_inode_pages + first_free, 
-                 1, &page_buf);
     bitmap[first_free] = 1; 
     SYNCH_BITMAP(write); 
     return first_free;
@@ -438,6 +436,8 @@ int sfs_fwrite(int fileID, const char* buf, int length) {
 }
 
 int sfs_fread(int fileID, char* buf, int length) {
+    if (fileID < 0 || fileID > (signed)super_block.num_data_pages - 1)
+        return 0;
     if (file_open_table[fileID].inode_idx == INODE_NULL)
         return 0;
     memset(&page_buf, 0, sizeof(page_t));
@@ -522,11 +522,34 @@ int sfs_fwseek(int fileID, int loc) {
 }
 
 int sfs_remove(char* file) {
+    memset(&zeros, 0, sizeof(page_t));
     for (int i = 0; (unsigned)i < super_block.num_data_pages; i++) {
         if (!strcmp(directory_cache[i].name, file)) {
             for (int j = 0; (unsigned)j < super_block.num_data_pages; j++) 
                 if (!strcmp(file, file_open_table[j].fname)) 
                     return -1;
+            for (int j = 0; j < 12; j++) {
+                if (inode_cache[directory_cache[i].inode_index].pages[j].pageid != PGPTR_NULL.pageid) {
+                    bitmap[inode_cache[directory_cache[i].inode_index].pages[j].pageid] = 0;
+                    write_blocks(1 + super_block.num_inode_pages + 
+                                 inode_cache[directory_cache[i].inode_index].pages[j].pageid, 1, &zeros);
+                }
+            }
+            if (inode_cache[directory_cache[i].inode_index].index_page.pageid != PGPTR_NULL.pageid) {
+                read_blocks(1 + super_block.num_inode_pages + 
+                            inode_cache[directory_cache[i].inode_index].index_page.pageid, 1, &page_buf);
+                for (int j = 0; j < (signed)(BLOCK_SIZE / sizeof(pageptr_t)); j++) {
+                    if (page_buf.content.index[j].pageid != PGPTR_NULL.pageid) {
+                        bitmap[page_buf.content.index[j].pageid] = 0;
+                        write_blocks(1 + super_block.num_inode_pages +
+                                     page_buf.content.index[j].pageid, 1, &zeros);
+                    }
+                }
+                bitmap[inode_cache[directory_cache[i].inode_index].index_page.pageid] = 0;
+                write_blocks(1 + super_block.num_inode_pages +
+                             inode_cache[directory_cache[i].inode_index].index_page.pageid, 1, &zeros);
+            }
+            SYNCH_BITMAP(write);
             memset(&inode_cache[directory_cache[i].inode_index], 0, 
                    sizeof(inode_t));
             memset(&directory_cache[i], 0, sizeof(dirent_t));

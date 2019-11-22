@@ -1,0 +1,1 @@
+/usr/bin/cc -std=gnu99 -g -Wall   CMakeFiles/sanity2.dir/sfs_test2.c.o CMakeFiles/sanity2.dir/disk_emu.c.o CMakeFiles/sanity2.dir/sfs_api.c.o  -o sanity2 
