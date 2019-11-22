@@ -1,1 +1,0 @@
-/usr/bin/cc -std=gnu99 -g -Wall   CMakeFiles/mount.dir/fuse_wrappers.c.o CMakeFiles/mount.dir/disk_emu.c.o CMakeFiles/mount.dir/sfs_api.c.o  -o mount -lfuse 
