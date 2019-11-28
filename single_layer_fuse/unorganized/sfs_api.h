@@ -25,7 +25,7 @@
  * 4. bitmap fits within one page 
  */
 
-#define DISC_NAME "sherry"
+#define DISC_NAME "yuxin"
 #define BLOCK_SIZE 1024
 #define NUM_DATA_BLOCKS 4096
 #define MAXFILENAME 20
