@@ -225,6 +225,32 @@ void consumer_thread() {
 ## 读者-写者问题
 ### 读者优先
 #### 信号量实现
+```cpp
+semaphore fmutex(1), rmutex(1), wmutex(1);
+int read_count = 0;
+
+void read() {
+    rmutex.wait();
+    if (read_count == 0)
+        fmutex.wait();
+    read_count += 1;
+    rmutex.signal();
+    // Read
+    rmutex.wait();
+    read_count -= 1;
+    if (read_count == 0)
+        fmutex.post();
+    rmutex.signal();
+}
+
+void write() {
+    wmutex.wait();
+    fmutex.wait();
+    // write
+    fmutex.signal();
+    wmutex.signal();
+}
+```
 #### 管程实现
 ```cpp
 struct reader_writer {
@@ -272,6 +298,42 @@ public:
 ```
 ### 写者优先
 #### 信号量实现
+```cpp
+semaphore fmutex(1), rmutex(1), wmutex(1), qmutex(1);
+int read_count = 0, write_count = 0;
+
+void read() {
+    qmutex.wait();
+    rmutex.wait();
+    if (read_count == 0)
+        fmutex.wait();
+    read_count += 1;
+    rmutex.signal();
+    qmutex.signal();
+    // Read
+    rmutex.wait();
+    read_count -= 1;
+    if (read_count == 0)
+        fmutex.post();
+    rmutex.signal();
+}
+
+void write() {
+    wmutex.wait();
+    if (write_count == 0)
+        rmutex.wait();
+    write_count += 1;
+    wmutex.signal();
+    fmutex.wait();
+    // write
+    fmutex.signal();
+    wmutex.wait();
+    write_count -= 1;
+    if (write_count == 0)
+        rmutex.wait();
+    wmutex.signal();
+}
+```
 #### 管程实现
 ```cpp
 struct reader_writer {
@@ -321,6 +383,36 @@ public:
 ```
 ### 公平竞争
 #### 信号量实现
+```cpp
+semaphore fmutex(1), rmutex(1), wmutex(1), qmutex(1);
+int read_count = 0;
+
+void read() {
+    qmutex.wait();
+    rmutex.wait();
+    if (read_count == 0)
+        fmutex.wait();
+    read_count += 1;
+    rmutex.signal();
+    qmutex.signal();
+    // Read
+    rmutex.wait();
+    read_count -= 1;
+    if (read_count == 0)
+        fmutex.post();
+    rmutex.signal();
+}
+
+void write() {
+    qmutex.wait();
+    wmutex.wait();
+    fmutex.wait();
+    // write
+    fmutex.signal();
+    wmutex.signal();
+    qmutex.signal();
+}
+```
 #### 管程实现
 ```cpp
 struct reader_writer {
