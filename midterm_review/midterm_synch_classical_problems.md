@@ -321,7 +321,7 @@ void read() {
 void write() {
     wmutex.wait();
     if (write_count == 0)
-        rmutex.wait();
+        qmutex.wait();
     write_count += 1;
     wmutex.signal();
     fmutex.wait();
@@ -330,7 +330,7 @@ void write() {
     wmutex.wait();
     write_count -= 1;
     if (write_count == 0)
-        rmutex.wait();
+        qmutex.wait();
     wmutex.signal();
 }
 ```
