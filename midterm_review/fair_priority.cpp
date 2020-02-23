@@ -8,7 +8,7 @@
 #include <chrono>
 #include <condition_variable>
 
-static int var = 0;
+volatile static int var = 0;
 
 struct reader_writer {
 private:
@@ -21,10 +21,13 @@ public:
     
     void read_lock() {
         std::unique_lock<std::mutex> lc(lock);
-        read_wait += 1;
-        if (write_count > 0 || write_wait > 0)
-            read_queue.wait(lc);
-        read_wait -= 1;
+        if (write_count > 0 || write_wait > 0) {
+            read_wait += 1;
+            read_queue.wait(lc, [this]() -> bool {
+                return !(read_wait == 0);
+            });
+            read_wait -= 1;
+        }
         read_count += 1;
         read_queue.notify_one();
     }
@@ -32,26 +35,31 @@ public:
     void read_unlock() {
         std::unique_lock<std::mutex> lc(lock);
         read_count -= 1;
-        if (read_count == 0)
+        if (read_count == 0) { 
             write_queue.notify_one();
+        }
     }
     
     void write_lock() {
         std::unique_lock<std::mutex> lc(lock);
-        write_wait += 1;
-        if (read_count > 0 || write_count > 0)
-            write_queue.wait(lc);
-        write_wait -= 1;
+        if (read_count > 0 || write_count > 0) {
+            write_wait += 1;
+            write_queue.wait(lc, [this]() -> bool {
+                return (read_count == 0 || read_wait == 0);
+            });
+            write_wait -= 1;
+        }
         write_count += 1;
     }
     
     void write_unlock() {
         std::unique_lock<std::mutex> lc(lock);
         write_count -= 1;
-        if (read_wait > 0)
-            read_queue.notify_one();
-        else
+        if (read_wait == 0) {
             write_queue.notify_one();
+        } else {
+            read_queue.notify_one();
+        }
     }
 };
 
