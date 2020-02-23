@@ -426,10 +426,13 @@ public:
     
     void read_lock() {
         std::unique_lock<std::mutex> lc(lock);
-        read_wait += 1;
-        if (write_count > 0 || write_wait > 0)
-            read_queue.wait(lc);
-        read_wait -= 1;
+        if (write_count > 0 || write_wait > 0) {
+            read_wait += 1;
+            read_queue.wait(lc, [this]() -> bool {
+                return !(read_wait == 0);
+            });
+            read_wait -= 1;
+        }
         read_count += 1;
         read_queue.notify_one();
     }
@@ -437,26 +440,31 @@ public:
     void read_unlock() {
         std::unique_lock<std::mutex> lc(lock);
         read_count -= 1;
-        if (read_count == 0)
+        if (read_count == 0) { 
             write_queue.notify_one();
+        }
     }
     
     void write_lock() {
         std::unique_lock<std::mutex> lc(lock);
-        write_wait += 1;
-        if (read_count > 0 || write_count > 0)
-            write_queue.wait(lc);
-        write_wait -= 1;
+        if (read_count > 0 || write_count > 0) {
+            write_wait += 1;
+            write_queue.wait(lc, [this]() -> bool {
+                return (read_count == 0 || read_wait == 0);
+            });
+            write_wait -= 1;
+        }
         write_count += 1;
     }
     
     void write_unlock() {
         std::unique_lock<std::mutex> lc(lock);
         write_count -= 1;
-        if (read_wait > 0)
-            read_queue.notify_one();
-        else
+        if (read_wait == 0) {
             write_queue.notify_one();
+        } else {
+            read_queue.notify_one();
+        }
     }
 };
 ```
@@ -492,35 +500,30 @@ private:
     std::vector<status_t> status;
     std::mutex lock;
     std::vector<std::condition_variable> self;
-
+private:
+    void test(int i) {
+        if ((state[(i + 4) % 5] != EATING) && 
+            (state[i] == HUNGRY) && 
+            (state[(i + 1) % 5] != EATING)) {
+            state[i] = EATING;
+            self[i].notify_one();
+        }
+    }
 public:
     dining_philosopher(int n): num_phil(n), status(std::vector<status_t> (n, THINKING)), 
                                self(std::vector<std::condition_variable> (n)) {}
     void pick_up(int i) {
         std::unique_lock<std::mutex> lock(mutex);
         status[(i)] = HUNGRY;
-        if (status[(i + num_phil - 1) % num_phil] != EATING && 
-            status[(i + 1) % num_phil] != EATING) {
-            status[(i)] = EATING;
-            self[(i)].notify_one(); // optional
-        } else {
-            self[(i)].wait();
-        }
+        test(i);
+        self[i].wait(lock, [this]() -> bool { return !(state[i] != EATING); })
     }
     
     void put_down(int i) {
         std::unique_lock<std::mutex> lock(mutex);
         status[(i)] = THINKING;
-        if (status[(i + num_phil - 1) % num_phil] == HUNGRY && 
-            status[(i + num_phil - 2) % num_phil] != EATING) {
-            status[(i + num_phil - 1) % num_phil] = EATING;
-            status[(i + num_phil - 1) % num_phil].notify_one();
-        }
-        if (status[(i + 1) % num_phil] == HUNGRY && 
-            status[(i + 2) % num_phil] != EATING) {
-            status[(i + 1) % num_phil] = EATING;
-            status[(i + 1) % num_phil].notify_one();
-        }
+        test((i + 4) % 5);
+        test((i + 1) % 5);
     }
 }
 ```
