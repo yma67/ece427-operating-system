@@ -67,14 +67,14 @@ public:
     void signal_m() {
         std::unique_lock<std::mutex> lock(mutex);
         count += 1;
-        if (count <= 0)
+        while (count <= 0)
             queue.notify_one();
     }
   
     void wait_m() {
         std::unique_lock<std::mutex> lock(mutex);
         count -= 1;
-        if (count < 0) 
+        while (count < 0) 
             queue.wait();
     }
 };
